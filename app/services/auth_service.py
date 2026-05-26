@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -6,6 +8,7 @@ from passlib.context import CryptContext
 from app.models.user import User
 from app.schemas.user import UserRegister
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
+from app.utils import create_access_token
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
