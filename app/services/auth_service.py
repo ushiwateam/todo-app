@@ -6,14 +6,16 @@ from sqlalchemy import select
 from passlib.context import CryptContext
 
 from app.models.user import User
-from app.schemas.user import UserRegister
+from app.schemas.user import UserRegister, UserLogin
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
-from app.utils import create_access_token
+from app.utils import create_access_token, prepare_token_data
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
+
+DUMMY_HASH = pwd_context.hash("dummypassword")
 
 
 def register(user_data: UserRegister, db: Session):
@@ -40,14 +42,30 @@ def register(user_data: UserRegister, db: Session):
     db.refresh(user)
 
     access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-    token_data = {
-        "sub": user.id,
-        "email": user.email
-
-    }
+    token_data = prepare_token_data(user)
     token = create_access_token(token_data, access_token_expires)
     return {"token": token}
 
+def authenticate_user(user_data: UserLogin, db: Session):
+    existing_user = db.execute(
+        select(User).where(User.email == user_data.email)
+    ).scalar_one_or_none()
+    if not existing_user:
+        pwd_context.verify(user_data.password, DUMMY_HASH)
+        return False
+    if not pwd_context.verify(user_data.password, existing_user.password):
+        return False
+    return existing_user
 
-def login():
-    pass
+def login(user_data: UserLogin, db: Session):
+    existing_user = authenticate_user(user_data, db)
+    if not existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email inexistant ou mot de passe incorrect"
+        )
+    access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    token_data = prepare_token_data(existing_user)
+    token = create_access_token(token_data, access_token_expires)
+    return {"token": token}
+
