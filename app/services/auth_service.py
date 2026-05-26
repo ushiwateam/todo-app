@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from fastapi import HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from passlib.context import CryptContext
@@ -46,19 +47,19 @@ def register(user_data: UserRegister, db: Session):
     token = create_access_token(token_data, access_token_expires)
     return {"token": token}
 
-def authenticate_user(user_data: UserLogin, db: Session):
+def authenticate_user(email, password, db: Session):
     existing_user = db.execute(
-        select(User).where(User.email == user_data.email)
+        select(User).where(User.email == email)
     ).scalar_one_or_none()
     if not existing_user:
-        pwd_context.verify(user_data.password, DUMMY_HASH)
+        pwd_context.verify(password, DUMMY_HASH)
         return False
-    if not pwd_context.verify(user_data.password, existing_user.password):
+    if not pwd_context.verify(password, existing_user.password):
         return False
     return existing_user
 
 def login(user_data: UserLogin, db: Session):
-    existing_user = authenticate_user(user_data, db)
+    existing_user = authenticate_user(user_data.email, user_data.password, db)
     if not existing_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -69,3 +70,14 @@ def login(user_data: UserLogin, db: Session):
     token = create_access_token(token_data, access_token_expires)
     return {"token": token}
 
+def token_login(form_data: OAuth2PasswordRequestForm, db: Session):
+    existing_user = authenticate_user(form_data.username, form_data.password, db)
+    if not existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email inexistant ou mot de passe incorrect"
+        )
+    access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    token_data = prepare_token_data(existing_user)
+    token = create_access_token(token_data, access_token_expires)
+    return {"access_token": token, "token_type": "bearer"}
