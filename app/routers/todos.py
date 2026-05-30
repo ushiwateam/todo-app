@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import User
-from app.schemas.todo import TodosCreate, TodosOut, AllTodosOut
-from app.services.todo_service import create_todo, get_todos
+from app.schemas.todo import TodosCreate, TodosOut, AllTodosOut, TodosUpdate
+from app.services.todo_service import create_todo, get_todos, update_todo
 
 router = APIRouter(tags=["Todos"], prefix="/todos")
 
@@ -40,3 +40,19 @@ def get_todos_route(
 
 ):
     return get_todos(user, db, page, limit)
+
+
+
+@router.put(
+    "/",
+    name="update todo",
+    status_code=200,
+    response_model=TodosOut
+)
+def update_todo_route(
+        user: Annotated[User, Depends(get_current_user)],
+        db: Annotated[Session, Depends(get_db)],
+        todo_id: Annotated[int, Query()],
+        todo: TodosUpdate
+):
+    return update_todo(user, db, todo_id, todo)
