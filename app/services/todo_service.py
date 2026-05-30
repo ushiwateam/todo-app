@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 from fastapi import HTTPException, status
 
 from app.models import User, Todo
-from app.schemas.todo import TodosCreate, TodosUpdate
+from app.schemas.todo import TodosCreate, TodosUpdate, TodosPatch
 
 
 def create_todo(todo: TodosCreate, user: User, db: Session):
@@ -50,6 +50,33 @@ def update_todo(user: User, db: Session, todo_id: int, todo: TodosUpdate):
         )
 
     update_data = todo.model_dump()
+
+    for key, value in update_data.items():
+        setattr(existing_todo, key, value)
+
+    db.commit()
+    db.refresh(existing_todo)
+
+    return existing_todo
+
+def patch_todo(user: User, db: Session, todo_id: int, todo: TodosPatch):
+    existing_todo = db.execute(
+        select(Todo).where(Todo.id == todo_id)
+    ).scalar_one_or_none()
+
+    if not existing_todo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Todo not found"
+        )
+
+    if user.id != existing_todo.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access unauthorized"
+        )
+
+    update_data = todo.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
         setattr(existing_todo, key, value)

@@ -21,3 +21,8 @@ class AllTodosOut(BaseModel):
 class TodosUpdate(BaseModel):
     title: str = Field(title="Title", max_length=255)
     description: str | None = Field(title="Description", default=None)
+
+
+class TodosPatch(BaseModel):
+    title: str | None = Field(title="Title", max_length=255, default=None)
+    description: str | None = Field(title="Description", default=None)
