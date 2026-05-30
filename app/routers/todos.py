@@ -5,17 +5,21 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import User
+from app.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
 from app.schemas.todo import TodosCreate, TodosOut, AllTodosOut, TodosUpdate, TodosPatch
 from app.services.todo_service import create_todo, get_todos, update_todo, delete_todo, patch_todo
 
-router = APIRouter(tags=["Todos"], prefix="/todos")
+router = APIRouter(tags=["Todos"], prefix="/todos", responses={
+    **UNAUTHORIZED_RESPONSE
+}
+                   )
 
 
 @router.post(
     "/",
     name="Add new todo",
     status_code=201,
-    response_model=TodosOut
+    response_model=TodosOut,
 )
 def create_todo_route(
         todo: TodosCreate,
@@ -23,7 +27,6 @@ def create_todo_route(
         db: Annotated[Session, Depends(get_db)]
 ):
     return create_todo(todo, user, db)
-
 
 
 @router.get(
@@ -42,12 +45,15 @@ def get_todos_route(
     return get_todos(user, db, page, limit)
 
 
-
 @router.put(
     "/",
     name="update todo",
     status_code=200,
-    response_model=TodosOut
+    response_model=TodosOut,
+    responses={
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE
+    }
 )
 def update_todo_route(
         user: Annotated[User, Depends(get_current_user)],
@@ -57,11 +63,16 @@ def update_todo_route(
 ):
     return update_todo(user, db, todo_id, todo)
 
+
 @router.patch(
     "/",
     name="patch todo",
     status_code=200,
-    response_model=TodosPatch
+    response_model=TodosPatch,
+    responses={
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE
+    }
 )
 def patch_todo_route(
         user: Annotated[User, Depends(get_current_user)],
@@ -71,10 +82,15 @@ def patch_todo_route(
 ):
     return patch_todo(user, db, todo_id, todo)
 
+
 @router.delete(
     "/",
     name="delete todo",
     status_code=204,
+    responses={
+        **FORBIDDEN_RESPONSE,
+        **NOT_FOUND_RESPONSE
+    }
 )
 def delete_todo_route(
         user: Annotated[User, Depends(get_current_user)],
