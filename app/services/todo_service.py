@@ -59,3 +59,25 @@ def update_todo(user: User, db: Session, todo_id: int, todo: TodosUpdate):
 
     return existing_todo
 
+
+def delete_todo(user: User, db: Session, todo_id: int):
+    existing_todo = db.execute(
+        select(Todo).where(Todo.id == todo_id)
+    ).scalar_one_or_none()
+
+    if not existing_todo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Todo not found"
+        )
+
+    if user.id != existing_todo.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access unauthorized"
+        )
+
+    db.delete(existing_todo)
+    db.commit()
+
+    return
