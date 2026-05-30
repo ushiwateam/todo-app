@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from jwt import InvalidTokenError, decode as jwt_decode
+from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
 
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
@@ -29,11 +29,11 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Annotate
         detail="Email inexistant ou mot de passe incorrect"
     )
     try:
-        payload = jwt_decode(token, TOKEN_SECRET_KEY, algorithms=[TOKEN_ALGORITHM])
+        payload = jwt.decode(token, TOKEN_SECRET_KEY, algorithms=[TOKEN_ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except InvalidTokenError:
+    except JWTError:
         raise credentials_exception
     existing_user = db.execute(select(User).where(
         User.id == int(user_id),

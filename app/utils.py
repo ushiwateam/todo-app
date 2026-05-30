@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime, timezone
 
-import jwt
+from jose import jwt
 
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
 from app.models.user import User
