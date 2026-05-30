@@ -18,3 +18,6 @@ class AllTodosOut(BaseModel):
     limit: int
     total: int
 
+class TodosUpdate(BaseModel):
+    title: str = Field(title="Title", max_length=255)
+    description: str | None = Field(title="Description", default=None)
