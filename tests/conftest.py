@@ -7,6 +7,8 @@ from sqlalchemy.pool import StaticPool
 from app.dependencies import get_db
 from app.main import app
 from app.database import Base
+from app.models import User
+from app.utils import pwd_context
 
 TEST_DATABASE_URL = "sqlite://"
 
@@ -54,3 +56,20 @@ def client(db):
         yield test_client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def create_user(db):
+    def _create_user(**kwargs):
+        user = User(
+            name=kwargs.get("name", "Test User"),
+            email=kwargs.get("email", "test@example.com"),
+            password=pwd_context.hash(kwargs.get("password", "dummypassword")),
+        )
+
+        db.add(user)
+        db.flush()
+
+        return user
+
+    return _create_user

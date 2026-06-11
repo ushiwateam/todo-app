@@ -1,6 +1,7 @@
 from datetime import timedelta, datetime, timezone
 
 from jose import jwt
+from passlib.context import CryptContext
 
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
 from app.models.user import User
@@ -18,3 +19,8 @@ def prepare_token_data(user: User):
         "sub": str(user.id),
         "email": user.email
     }
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto"
+)
