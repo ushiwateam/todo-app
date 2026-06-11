@@ -58,6 +58,7 @@ def authenticate_user(email, password, db: Session):
         return False
     return existing_user
 
+
 def login(user_data: UserLogin, db: Session):
     existing_user = authenticate_user(user_data.email, user_data.password, db)
     if not existing_user:
@@ -69,6 +70,7 @@ def login(user_data: UserLogin, db: Session):
     token_data = prepare_token_data(existing_user)
     token = create_access_token(token_data, access_token_expires)
     return {"token": token}
+
 
 def token_login(form_data: OAuth2PasswordRequestForm, db: Session):
     existing_user = authenticate_user(form_data.username, form_data.password, db)
