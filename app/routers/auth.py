@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Annotated
@@ -14,6 +14,7 @@ router = APIRouter(tags=["Users"])
 @router.post(
     "/register",
     name="Register a new user",
+    status_code=status.HTTP_201_CREATED,
     responses={
         **EMAIL_ALREADY_REGISTERED_RESPONSE
     }
