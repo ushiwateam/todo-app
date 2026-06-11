@@ -4,17 +4,11 @@ from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from passlib.context import CryptContext
 
 from app.models.user import User
 from app.schemas.user import UserRegister, UserLogin
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
-from app.utils import create_access_token, prepare_token_data
-
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto"
-)
+from app.utils import create_access_token, prepare_token_data, pwd_context
 
 DUMMY_HASH = pwd_context.hash("dummypassword")
 
@@ -46,6 +40,7 @@ def register(user_data: UserRegister, db: Session):
     token_data = prepare_token_data(user)
     token = create_access_token(token_data, access_token_expires)
     return {"token": token}
+
 
 def authenticate_user(email, password, db: Session):
     existing_user = db.execute(
