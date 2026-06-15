@@ -1,14 +1,17 @@
+from datetime import timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.dependencies import get_db
 from app.main import app
 from app.database import Base
-from app.models import User
-from app.utils import pwd_context
+from app.models import User, Todo
+from app.utils import pwd_context, prepare_token_data, create_access_token
 
 TEST_DATABASE_URL = "sqlite://"
 
@@ -73,3 +76,29 @@ def create_user(db):
         return user
 
     return _create_user
+
+
+@pytest.fixture
+def create_todo(db):
+    def _create_todo(user: User,**kwargs):
+        todo = Todo(
+            title=kwargs.get("title", "Test title"),
+            description=kwargs.get("description", "dummy description"),
+            user_id = user.id
+        )
+
+        db.add(todo)
+        db.flush()
+
+        return todo
+
+    return _create_todo
+
+@pytest.fixture
+def auth_headers():
+    def _auth_headers(user: User):
+        access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+        token = create_access_token(prepare_token_data(user), access_token_expires)
+        return {"Authorization": f"Bearer {token}"}
+
+    return _auth_headers
