@@ -17,8 +17,33 @@ services:
     networks:
       - backend
 
+
+  app:
+    image: todo-app
+    container_name: app
+
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_HOST: db
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    ports:
+      - "8000:8000"
+
+    networks:
+      - backend
+
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
 
 networks:
   backend:
+    driver: bridge
