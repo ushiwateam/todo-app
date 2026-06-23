@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Path
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
@@ -46,7 +46,7 @@ def get_todos_route(
 
 
 @router.put(
-    "/",
+    "/{todo_id}",
     name="update todo",
     status_code=200,
     response_model=TodosOut,
@@ -58,14 +58,14 @@ def get_todos_route(
 def update_todo_route(
         user: Annotated[User, Depends(get_current_user)],
         db: Annotated[Session, Depends(get_db)],
-        todo_id: Annotated[int, Query()],
+        todo_id: Annotated[int, Path()],
         todo: TodosUpdate
 ):
     return update_todo(user, db, todo_id, todo)
 
 
 @router.patch(
-    "/",
+    "/{todo_id}",
     name="patch todo",
     status_code=200,
     response_model=TodosPatch,
@@ -77,14 +77,14 @@ def update_todo_route(
 def patch_todo_route(
         user: Annotated[User, Depends(get_current_user)],
         db: Annotated[Session, Depends(get_db)],
-        todo_id: Annotated[int, Query()],
+        todo_id: Annotated[int, Path()],
         todo: TodosPatch
 ):
     return patch_todo(user, db, todo_id, todo)
 
 
 @router.delete(
-    "/",
+    "/{todo_id}",
     name="delete todo",
     status_code=204,
     responses={
@@ -95,6 +95,6 @@ def patch_todo_route(
 def delete_todo_route(
         user: Annotated[User, Depends(get_current_user)],
         db: Annotated[Session, Depends(get_db)],
-        todo_id: Annotated[int, Query()]
+        todo_id: Annotated[int, Path()]
 ):
     return delete_todo(user, db, todo_id)

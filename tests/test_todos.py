@@ -42,7 +42,7 @@ def test_modify_owned_todo(client, create_user, create_todo, auth_headers):
         "title": "new title",
         "description": "new desc"
     }
-    response = client.put(f"/todos", params={"todo_id": todo.id}, headers=auth_headers(user), json=new_todo)
+    response = client.put(f"/todos/{todo.id}", headers=auth_headers(user), json=new_todo)
 
     assert response.status_code == 200
     updated_todo = TodosUpdate(**response.json())
@@ -66,7 +66,7 @@ def test_modify_unowned_todo(client, create_user, create_todo, auth_headers):
         "title": "new title",
         "description": "new desc"
     }
-    response = client.put("/todos", params={"todo_id": todo.id}, headers=auth_headers(user_2), json=new_todo)
+    response = client.put(f"/todos/{todo.id}", headers=auth_headers(user_2), json=new_todo)
     assert response.status_code == 403
     assert response.json()["detail"] == "Access unauthorized"
 
