@@ -107,7 +107,7 @@ TOKEN_SECRET_KEY=your-secret-key
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/todo-api.git
+git clone https://github.com/ushiwateam/todo-app.git
 cd todo-api
 ```
 
