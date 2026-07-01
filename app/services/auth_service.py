@@ -2,10 +2,8 @@ from datetime import timedelta
 
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from sqlalchemy import select
 
-from app.models.user import User
+from app.dependencies import UserRepositoryDep
 from app.schemas.user import UserRegister, UserLogin
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.utils import create_access_token, prepare_token_data, pwd_context
@@ -13,10 +11,8 @@ from app.utils import create_access_token, prepare_token_data, pwd_context
 DUMMY_HASH = pwd_context.hash("dummypassword")
 
 
-def register(user_data: UserRegister, db: Session):
-    existing_user = db.execute(
-        select(User).where(User.email == user_data.email)
-    ).scalar_one_or_none()
+def register(user_data: UserRegister, user_repository: UserRepositoryDep):
+    existing_user = user_repository.get_one_user_or_none(user_data.email)
 
     if existing_user:
         raise HTTPException(
@@ -26,15 +22,11 @@ def register(user_data: UserRegister, db: Session):
 
     hashed_password = pwd_context.hash(user_data.password)
 
-    user = User(
+    user = user_repository.create_user(
         name=user_data.name,
         email=user_data.email,
         password=hashed_password
     )
-
-    db.add(user)
-    db.commit()
-    db.refresh(user)
 
     access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     token_data = prepare_token_data(user)
@@ -42,20 +34,18 @@ def register(user_data: UserRegister, db: Session):
     return {"token": token}
 
 
-def authenticate_user(email, password, db: Session):
-    existing_user = db.execute(
-        select(User).where(User.email == email)
-    ).scalar_one_or_none()
+def authenticate_user(email, password, user_repository: UserRepositoryDep):
+    existing_user = user_repository.get_one_user_or_none(email)
     if not existing_user:
         pwd_context.verify(password, DUMMY_HASH)
-        return False
+        return None
     if not pwd_context.verify(password, existing_user.password):
-        return False
+        return None
     return existing_user
 
 
-def login(user_data: UserLogin, db: Session):
-    existing_user = authenticate_user(user_data.email, user_data.password, db)
+def login(user_data: UserLogin, user_repository: UserRepositoryDep):
+    existing_user = authenticate_user(user_data.email, user_data.password, user_repository)
     if not existing_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -67,8 +57,8 @@ def login(user_data: UserLogin, db: Session):
     return {"token": token}
 
 
-def token_login(form_data: OAuth2PasswordRequestForm, db: Session):
-    existing_user = authenticate_user(form_data.username, form_data.password, db)
+def token_login(form_data: OAuth2PasswordRequestForm, user_repository: UserRepositoryDep):
+    existing_user = authenticate_user(form_data.username, form_data.password, user_repository)
     if not existing_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
