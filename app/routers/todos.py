@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Path
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_db, get_current_user
+from app.dependencies import get_db, get_current_user, TodoRepositoryDep
 from app.models import User
 from app.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
 from app.schemas.todo import TodosCreate, TodosOut, AllTodosOut, TodosUpdate, TodosPatch
@@ -24,9 +24,9 @@ router = APIRouter(tags=["Todos"], prefix="/todos", responses={
 def create_todo_route(
         todo: TodosCreate,
         user: Annotated[User, Depends(get_current_user)],
-        db: Annotated[Session, Depends(get_db)]
+        todo_repository: TodoRepositoryDep
 ):
-    return create_todo(todo, user, db)
+    return create_todo(todo, user, todo_repository)
 
 
 @router.get(
@@ -37,12 +37,12 @@ def create_todo_route(
 )
 def get_todos_route(
         user: Annotated[User, Depends(get_current_user)],
-        db: Annotated[Session, Depends(get_db)],
+        todo_repository: TodoRepositoryDep,
         page: Annotated[int, Query()] = 1,
         limit: Annotated[int, Query()] = 10
 
 ):
-    return get_todos(user, db, page, limit)
+    return get_todos(user, todo_repository, page, limit)
 
 
 @router.put(
@@ -57,11 +57,11 @@ def get_todos_route(
 )
 def update_todo_route(
         user: Annotated[User, Depends(get_current_user)],
-        db: Annotated[Session, Depends(get_db)],
+        todo_repository: TodoRepositoryDep,
         todo_id: Annotated[int, Path()],
         todo: TodosUpdate
 ):
-    return update_todo(user, db, todo_id, todo)
+    return update_todo(user, todo_repository, todo_id, todo)
 
 
 @router.patch(
@@ -76,11 +76,11 @@ def update_todo_route(
 )
 def patch_todo_route(
         user: Annotated[User, Depends(get_current_user)],
-        db: Annotated[Session, Depends(get_db)],
+        todo_repository: TodoRepositoryDep,
         todo_id: Annotated[int, Path()],
         todo: TodosPatch
 ):
-    return patch_todo(user, db, todo_id, todo)
+    return patch_todo(user, todo_repository, todo_id, todo)
 
 
 @router.delete(
@@ -94,7 +94,7 @@ def patch_todo_route(
 )
 def delete_todo_route(
         user: Annotated[User, Depends(get_current_user)],
-        db: Annotated[Session, Depends(get_db)],
+        todo_repository: TodoRepositoryDep,
         todo_id: Annotated[int, Path()]
 ):
-    return delete_todo(user, db, todo_id)
+    return delete_todo(user, todo_repository, todo_id)
