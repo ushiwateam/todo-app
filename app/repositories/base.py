@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Generic, Type, TypeVar
+from typing import Generic, Type, TypeVar, List
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -33,7 +33,18 @@ class IRepository(ABC, Generic[T]):
             )
             .scalar_one_or_none()
         )
+    def get_all(self, *conditions, offset=0, limit=1000) -> List[T] | []:
+        return list(self.db.scalars(select(self.model).where(*conditions).offset(offset).limit(limit)).all())
 
     def delete(self, instance: T) -> None:
         self.db.delete(instance)
         self.db.commit()
+
+    def update(self, instance: T, data: dict):
+        for key, value in data.items():
+            setattr(instance, key, value)
+
+        self.db.commit()
+        self.db.refresh(instance)
+
+        return instance
