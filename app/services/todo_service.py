@@ -1,29 +1,22 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import select, func
 from fastapi import HTTPException, status
 
-from app.models import User, Todo
+from app.dependencies import TodoRepositoryDep
+from app.models import User
 from app.schemas.todo import TodosCreate, TodosUpdate, TodosPatch
 
 
-def create_todo(todo: TodosCreate, user: User, db: Session):
-    todo = Todo(
+def create_todo(todo: TodosCreate, user: User, todo_repository: TodoRepositoryDep):
+    return todo_repository.create(
         title=todo.title,
         description=todo.description,
         user_id=user.id
     )
 
-    db.add(todo)
-    db.commit()
-    db.refresh(todo)
 
-    return todo
-
-
-def get_todos(user: User, db: Session, page, limit):
+def get_todos(user: User, todo_repository: TodoRepositoryDep, page, limit):
     offset = (page - 1) * limit
-    total_todos = db.scalar(select(func.count()).select_from(Todo).where(Todo.user_id == user.id)) or 0
-    data = list(db.scalars(select(Todo).where(Todo.user_id == user.id).offset(offset).limit(limit)).all())
+    total_todos = todo_repository.count_todos_by_user_id(user.id)
+    data = todo_repository.get_all_by_user_id(user.id, offset, limit)
     return {
         "data": data,
         "page": page,
@@ -32,10 +25,8 @@ def get_todos(user: User, db: Session, page, limit):
     }
 
 
-def update_todo(user: User, db: Session, todo_id: int, todo: TodosUpdate):
-    existing_todo = db.execute(
-        select(Todo).where(Todo.id == todo_id)
-    ).scalar_one_or_none()
+def update_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int, todo: TodosUpdate):
+    existing_todo = todo_repository.get_by_id(todo_id)
 
     if not existing_todo:
         raise HTTPException(
@@ -51,18 +42,11 @@ def update_todo(user: User, db: Session, todo_id: int, todo: TodosUpdate):
 
     update_data = todo.model_dump()
 
-    for key, value in update_data.items():
-        setattr(existing_todo, key, value)
+    return todo_repository.update(existing_todo, update_data)
 
-    db.commit()
-    db.refresh(existing_todo)
 
-    return existing_todo
-
-def patch_todo(user: User, db: Session, todo_id: int, todo: TodosPatch):
-    existing_todo = db.execute(
-        select(Todo).where(Todo.id == todo_id)
-    ).scalar_one_or_none()
+def patch_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int, todo: TodosPatch):
+    existing_todo = todo_repository.get_by_id(todo_id)
 
     if not existing_todo:
         raise HTTPException(
@@ -78,19 +62,11 @@ def patch_todo(user: User, db: Session, todo_id: int, todo: TodosPatch):
 
     update_data = todo.model_dump(exclude_unset=True)
 
-    for key, value in update_data.items():
-        setattr(existing_todo, key, value)
-
-    db.commit()
-    db.refresh(existing_todo)
-
-    return existing_todo
+    return todo_repository.update(existing_todo, update_data)
 
 
-def delete_todo(user: User, db: Session, todo_id: int):
-    existing_todo = db.execute(
-        select(Todo).where(Todo.id == todo_id)
-    ).scalar_one_or_none()
+def delete_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int):
+    existing_todo = todo_repository.get_by_id(todo_id)
 
     if not existing_todo:
         raise HTTPException(
@@ -104,7 +80,6 @@ def delete_todo(user: User, db: Session, todo_id: int):
             detail="Access unauthorized"
         )
 
-    db.delete(existing_todo)
-    db.commit()
+    todo_repository.delete(existing_todo)
 
     return
