@@ -1,28 +1,21 @@
-from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.models import User
+from app.repositories.base import IRepository
 
 
-class UserRepository:
-    def __init__(self, db):
-        self.db = db
+class UserRepository(IRepository[User]):
+    def __init__(self, db: Session):
+        super().__init__(db, User)
 
-    def create_user(self, name: str, email: str, password: str):
-        user = User(
+    def create_user(self, name: str, email: str, password: str) -> User:
+        return self.create(
             name=name,
             email=email,
-            password=password
+            password=password,
         )
 
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-
-        return user
-
-    def get_one_user_or_none(self, email: str):
-        return self.db.execute(
-        select(User).where(User.email == email)
-    ).scalar_one_or_none()
+    def get_user_by_email(self, email: str) -> User | None:
+        return self.get_one_or_none(User.email == email)
 
 
