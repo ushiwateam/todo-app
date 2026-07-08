@@ -1,8 +1,7 @@
-from fastapi import HTTPException, status
-
 from app.dependencies import TodoRepositoryDep
 from app.models import User
 from app.schemas.todo import TodosCreate, TodosUpdate, TodosPatch
+from app.services.exceptions import UnfoundTodo, AccessUnauthorized
 
 
 def create_todo(todo: TodosCreate, user: User, todo_repository: TodoRepositoryDep):
@@ -25,20 +24,24 @@ def get_todos(user: User, todo_repository: TodoRepositoryDep, page, limit):
     }
 
 
-def update_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int, todo: TodosUpdate):
+def get_owned_todo(
+        user: User,
+        todo_repository: TodoRepositoryDep,
+        todo_id: int,
+):
     existing_todo = todo_repository.get_by_id(todo_id)
 
     if not existing_todo:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Todo not found"
-        )
+        raise UnfoundTodo
 
     if user.id != existing_todo.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access unauthorized"
-        )
+        raise AccessUnauthorized
+
+    return existing_todo
+
+
+def update_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int, todo: TodosUpdate):
+    existing_todo = get_owned_todo(user, todo_repository, todo_id)
 
     update_data = todo.model_dump()
 
@@ -46,19 +49,7 @@ def update_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int, to
 
 
 def patch_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int, todo: TodosPatch):
-    existing_todo = todo_repository.get_by_id(todo_id)
-
-    if not existing_todo:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Todo not found"
-        )
-
-    if user.id != existing_todo.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access unauthorized"
-        )
+    existing_todo = get_owned_todo(user, todo_repository, todo_id)
 
     update_data = todo.model_dump(exclude_unset=True)
 
@@ -66,19 +57,7 @@ def patch_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int, tod
 
 
 def delete_todo(user: User, todo_repository: TodoRepositoryDep, todo_id: int):
-    existing_todo = todo_repository.get_by_id(todo_id)
-
-    if not existing_todo:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Todo not found"
-        )
-
-    if user.id != existing_todo.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access unauthorized"
-        )
+    existing_todo = get_owned_todo(user, todo_repository, todo_id)
 
     todo_repository.delete(existing_todo)
 
