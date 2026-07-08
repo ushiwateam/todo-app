@@ -15,7 +15,7 @@ def register(user_data: UserRegister, user_repository: UserRepositoryDep):
     existing_user = user_repository.get_user_by_email(user_data.email)
 
     if existing_user:
-        raise EmailRegistered
+        raise EmailRegistered()
 
     hashed_password = pwd_context.hash(user_data.password)
 
@@ -44,7 +44,7 @@ def authenticate_user(email, password, user_repository: UserRepositoryDep):
 def login(user_data: UserLogin, user_repository: UserRepositoryDep):
     existing_user = authenticate_user(user_data.email, user_data.password, user_repository)
     if not existing_user:
-        raise UnauthorizedUser
+        raise UnauthorizedUser()
     access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     token_data = prepare_token_data(existing_user)
     token = create_access_token(token_data, access_token_expires)
@@ -54,7 +54,7 @@ def login(user_data: UserLogin, user_repository: UserRepositoryDep):
 def token_login(form_data: OAuth2PasswordRequestForm, user_repository: UserRepositoryDep):
     existing_user = authenticate_user(form_data.username, form_data.password, user_repository)
     if not existing_user:
-        raise UnauthorizedUser
+        raise UnauthorizedUser()
     access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     token_data = prepare_token_data(existing_user)
     token = create_access_token(token_data, access_token_expires)
