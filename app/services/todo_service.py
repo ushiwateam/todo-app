@@ -32,10 +32,10 @@ def get_owned_todo(
     existing_todo = todo_repository.get_by_id(todo_id)
 
     if not existing_todo:
-        raise UnfoundTodo
+        raise UnfoundTodo()
 
     if user.id != existing_todo.user_id:
-        raise AccessUnauthorized
+        raise AccessUnauthorized()
 
     return existing_todo
 
