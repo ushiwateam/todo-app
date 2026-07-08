@@ -12,7 +12,7 @@ DUMMY_HASH = pwd_context.hash("dummypassword")
 
 
 def register(user_data: UserRegister, user_repository: UserRepositoryDep):
-    existing_user = user_repository.get_one_user_or_none(user_data.email)
+    existing_user = user_repository.get_user_by_email(user_data.email)
 
     if existing_user:
         raise HTTPException(
@@ -35,7 +35,7 @@ def register(user_data: UserRegister, user_repository: UserRepositoryDep):
 
 
 def authenticate_user(email, password, user_repository: UserRepositoryDep):
-    existing_user = user_repository.get_one_user_or_none(email)
+    existing_user = user_repository.get_user_by_email(email)
     if not existing_user:
         pwd_context.verify(password, DUMMY_HASH)
         return None

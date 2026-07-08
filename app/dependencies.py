@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
 from app.database import SessionLocal
 from app.models.user import User
-from app.repositories import UserRepository
+from app.repositories import UserRepository, TodoRepository
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -49,4 +49,8 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbDep):
 def get_user_repository(db: DbDep):
     return UserRepository(db)
 
+def get_todo_repository(db: DbDep):
+    return TodoRepository(db)
+
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
+TodoRepositoryDep = Annotated[TodoRepository, Depends(get_todo_repository)]
