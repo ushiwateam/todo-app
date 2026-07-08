@@ -1,12 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Path
+from fastapi import APIRouter, Depends, Query, Path, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user, TodoRepositoryDep
 from app.models import User
 from app.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
 from app.schemas.todo import TodosCreate, TodosOut, AllTodosOut, TodosUpdate, TodosPatch
+from app.services.exceptions import UnfoundTodo, AccessUnauthorized
 from app.services.todo_service import create_todo, get_todos, update_todo, delete_todo, patch_todo
 
 router = APIRouter(tags=["Todos"], prefix="/todos", responses={
@@ -61,7 +62,18 @@ def update_todo_route(
         todo_id: Annotated[int, Path()],
         todo: TodosUpdate
 ):
-    return update_todo(user, todo_repository, todo_id, todo)
+    try:
+        return update_todo(user, todo_repository, todo_id, todo)
+    except UnfoundTodo as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.detail
+        )
+    except AccessUnauthorized as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.detail
+        )
 
 
 @router.patch(
@@ -80,7 +92,18 @@ def patch_todo_route(
         todo_id: Annotated[int, Path()],
         todo: TodosPatch
 ):
-    return patch_todo(user, todo_repository, todo_id, todo)
+    try:
+        return patch_todo(user, todo_repository, todo_id, todo)
+    except UnfoundTodo as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.detail
+        )
+    except AccessUnauthorized as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.detail
+        )
 
 
 @router.delete(
@@ -97,4 +120,15 @@ def delete_todo_route(
         todo_repository: TodoRepositoryDep,
         todo_id: Annotated[int, Path()]
 ):
-    return delete_todo(user, todo_repository, todo_id)
+    try:
+        return delete_todo(user, todo_repository, todo_id)
+    except UnfoundTodo as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.detail
+        )
+    except AccessUnauthorized as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.detail
+        )
