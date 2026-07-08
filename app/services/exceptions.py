@@ -11,3 +11,12 @@ class UnauthorizedUser(ServiceExceptions):
     def __init__(self):
         super().__init__(detail="Email inexistant ou mot de passe incorrect")
 
+
+class UnfoundTodo(ServiceExceptions):
+    def __init__(self):
+        super().__init__(detail="Todo not found")
+
+
+class AccessUnauthorized(ServiceExceptions):
+    def __init__(self):
+        super().__init__(detail="Access unauthorized")
