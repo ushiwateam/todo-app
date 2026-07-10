@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, status, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
-from typing import Annotated
+from fastapi import APIRouter, status, HTTPException
 
-from app.dependencies import UserRepositoryDep
+from app.dependencies import AuthServiceDep, FormDataDep
 from app.responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORIZED_RESPONSE
 from app.schemas.user import UserRegister, UserLogin
-from app.services.auth_service import register, login, token_login, EmailRegistered
+from app.services.auth_service import EmailRegistered
 from app.services.exceptions import UnauthorizedUser
 
 router = APIRouter(tags=["Users"])
@@ -21,10 +19,10 @@ router = APIRouter(tags=["Users"])
 )
 def register_route(
         user: UserRegister,
-        user_repository: UserRepositoryDep
+        auth_service: AuthServiceDep
 ):
     try:
-        return register(user, user_repository)
+        return auth_service.register(user)
     except EmailRegistered as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -40,10 +38,10 @@ def register_route(
              )
 def login_route(
         user: UserLogin,
-        user_repository: UserRepositoryDep
+        auth_service: AuthServiceDep
 ):
     try:
-        return login(user, user_repository)
+        return auth_service.login(user)
     except UnauthorizedUser as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,10 +49,9 @@ def login_route(
         )
 
 
-
 @router.post("/token", include_in_schema=False)
 async def login_for_access_token(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-        user_repository: UserRepositoryDep
+        auth_service: AuthServiceDep,
+        form_data: FormDataDep
 ):
-    return token_login(form_data, user_repository)
+    return auth_service.token_login(form_data)
