@@ -1,14 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Path, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Path, HTTPException, status
 
-from app.dependencies import get_db, get_current_user, TodoRepositoryDep
-from app.models import User
+from app.dependencies import TodoServiceDep
 from app.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
 from app.schemas.todo import TodosCreate, TodosOut, AllTodosOut, TodosUpdate, TodosPatch
 from app.services.exceptions import UnfoundTodo, AccessUnauthorized
-from app.services.todo_service import create_todo, get_todos, update_todo, delete_todo, patch_todo
 
 router = APIRouter(tags=["Todos"], prefix="/todos", responses={
     **UNAUTHORIZED_RESPONSE
@@ -24,10 +21,9 @@ router = APIRouter(tags=["Todos"], prefix="/todos", responses={
 )
 def create_todo_route(
         todo: TodosCreate,
-        user: Annotated[User, Depends(get_current_user)],
-        todo_repository: TodoRepositoryDep
+        todo_service: TodoServiceDep
 ):
-    return create_todo(todo, user, todo_repository)
+    return todo_service.create_todo(todo)
 
 
 @router.get(
@@ -37,13 +33,12 @@ def create_todo_route(
     response_model=AllTodosOut
 )
 def get_todos_route(
-        user: Annotated[User, Depends(get_current_user)],
-        todo_repository: TodoRepositoryDep,
+        todo_service: TodoServiceDep,
         page: Annotated[int, Query()] = 1,
         limit: Annotated[int, Query()] = 10
 
 ):
-    return get_todos(user, todo_repository, page, limit)
+    return todo_service.get_todos(page, limit)
 
 
 @router.put(
@@ -57,13 +52,12 @@ def get_todos_route(
     }
 )
 def update_todo_route(
-        user: Annotated[User, Depends(get_current_user)],
-        todo_repository: TodoRepositoryDep,
+        todo_service: TodoServiceDep,
         todo_id: Annotated[int, Path()],
         todo: TodosUpdate
 ):
     try:
-        return update_todo(user, todo_repository, todo_id, todo)
+        return todo_service.update_todo(todo_id, todo)
     except UnfoundTodo as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -87,13 +81,12 @@ def update_todo_route(
     }
 )
 def patch_todo_route(
-        user: Annotated[User, Depends(get_current_user)],
-        todo_repository: TodoRepositoryDep,
+        todo_service: TodoServiceDep,
         todo_id: Annotated[int, Path()],
         todo: TodosPatch
 ):
     try:
-        return patch_todo(user, todo_repository, todo_id, todo)
+        return todo_service.patch_todo(todo_id, todo)
     except UnfoundTodo as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -116,12 +109,11 @@ def patch_todo_route(
     }
 )
 def delete_todo_route(
-        user: Annotated[User, Depends(get_current_user)],
-        todo_repository: TodoRepositoryDep,
+        todo_service: TodoServiceDep,
         todo_id: Annotated[int, Path()]
 ):
     try:
-        return delete_todo(user, todo_repository, todo_id)
+        return todo_service.delete_todo(todo_id)
     except UnfoundTodo as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
