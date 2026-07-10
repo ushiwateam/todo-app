@@ -10,6 +10,7 @@ from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
 from app.database import SessionLocal
 from app.models.user import User
 from app.repositories import UserRepository, TodoRepository
+from app.services.todo_service import TodoService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -54,3 +55,9 @@ def get_todo_repository(db: DbDep):
 
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
 TodoRepositoryDep = Annotated[TodoRepository, Depends(get_todo_repository)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+def get_todo_service(todo_repository: TodoRepositoryDep, user: CurrentUserDep):
+    return TodoService(todo_repository, user)
+
+TodoServiceDep = Annotated[TodoService, Depends(get_todo_service)]
