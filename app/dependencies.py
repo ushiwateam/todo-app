@@ -4,12 +4,13 @@ from fastapi import HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from jose import JWTError, jwt
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
 from app.database import SessionLocal
 from app.models.user import User
 from app.repositories import UserRepository, TodoRepository
+from app.services.auth_service import AuthService
 from app.services.todo_service import TodoService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -56,8 +57,14 @@ def get_todo_repository(db: DbDep):
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
 TodoRepositoryDep = Annotated[TodoRepository, Depends(get_todo_repository)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+FormDataDep = Annotated[OAuth2PasswordRequestForm, Depends()]
 
 def get_todo_service(todo_repository: TodoRepositoryDep, user: CurrentUserDep):
     return TodoService(todo_repository, user)
 
 TodoServiceDep = Annotated[TodoService, Depends(get_todo_service)]
+
+def get_auth_service(user_repository: UserRepositoryDep):
+    return AuthService(user_repository)
+
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
