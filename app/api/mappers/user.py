@@ -1,5 +1,5 @@
-from app.schemas.user import UserRegister, UserLogin
-from app.services.entities import NewUser, UserCredentials
+from app.api.schemas.user import UserRegister, UserLogin
+from app.application.commands.user import NewUser, UserCredentials
 
 
 def to_new_user(data: UserRegister) -> NewUser:

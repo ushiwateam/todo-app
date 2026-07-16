@@ -1,8 +1,8 @@
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from app.models import Todo
-from app.repositories.base import IRepository
+from app.infrastructure.database.models import Todo
+from app.infrastructure.repositories.base import IRepository
 
 
 class TodoRepository(IRepository[Todo]):

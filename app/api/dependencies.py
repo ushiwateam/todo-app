@@ -7,11 +7,11 @@ from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
-from app.database import SessionLocal
-from app.models.user import User
-from app.repositories import UserRepository, TodoRepository
-from app.services.auth_service import AuthService
-from app.services.todo_service import TodoService
+from app.infrastructure.database.session import SessionLocal
+from app.infrastructure.database.models.user import User
+from app.infrastructure.repositories import UserRepository, TodoRepository
+from app.application.services.auth_service import AuthService
+from app.application.services.todo_service import TodoService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
