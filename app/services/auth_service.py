@@ -3,7 +3,7 @@ from datetime import timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.repositories import UserRepository
-from app.schemas.user import UserRegister, UserLogin
+from app.services.entities import NewUser, UserCredentials
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.services.exceptions import EmailRegistered, UnauthorizedUser
 from app.utils import create_access_token, prepare_token_data, pwd_context
@@ -15,22 +15,22 @@ class AuthService:
     def __init__(self, user_repository: UserRepository):
         self.user_repository = user_repository
 
-    def register(self, user_data: UserRegister):
-        existing_user = self.user_repository.get_user_by_email(user_data.email)
+    def register(self, user: NewUser):
+        existing_user = self.user_repository.get_user_by_email(user.email)
 
         if existing_user:
             raise EmailRegistered()
 
-        hashed_password = pwd_context.hash(user_data.password)
+        hashed_password = pwd_context.hash(user.password)
 
-        user = self.user_repository.create_user(
-            name=user_data.name,
-            email=user_data.email,
+        new_user = self.user_repository.create_user(
+            name=user.name,
+            email=user.email,
             password=hashed_password
         )
 
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-        token_data = prepare_token_data(user)
+        token_data = prepare_token_data(new_user)
         token = create_access_token(token_data, access_token_expires)
         return {"token": token}
 
@@ -43,8 +43,8 @@ class AuthService:
             return None
         return existing_user
 
-    def login(self, user_data: UserLogin):
-        existing_user = self.authenticate_user(user_data.email, user_data.password)
+    def login(self, user: UserCredentials):
+        existing_user = self.authenticate_user(user.email, user.password)
         if not existing_user:
             raise UnauthorizedUser()
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
