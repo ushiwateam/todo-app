@@ -2,6 +2,7 @@ from fastapi import APIRouter, status, HTTPException
 
 from app.dependencies import AuthServiceDep, FormDataDep
 from app.responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORIZED_RESPONSE
+from app.routers.mappers import to_new_user, to_user_credentials
 from app.schemas.user import UserRegister, UserLogin
 from app.services.auth_service import EmailRegistered
 from app.services.exceptions import UnauthorizedUser
@@ -22,7 +23,7 @@ def register_route(
         auth_service: AuthServiceDep
 ):
     try:
-        return auth_service.register(user)
+        return auth_service.register(to_new_user(user))
     except EmailRegistered as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -41,7 +42,7 @@ def login_route(
         auth_service: AuthServiceDep
 ):
     try:
-        return auth_service.login(user)
+        return auth_service.login(to_user_credentials(user))
     except UnauthorizedUser as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
