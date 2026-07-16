@@ -10,7 +10,7 @@ def to_user_register_command(data: UserRegisterRequest) -> UserRegisterCommand:
     )
 
 
-def to_user_credentials(data: UserLoginRequest) -> UserLoginCommand:
+def to_user_login_command(data: UserLoginRequest) -> UserLoginCommand:
     return UserLoginCommand(
         email=data.email,
         password=data.password,
