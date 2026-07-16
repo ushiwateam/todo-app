@@ -1,6 +1,6 @@
 import pytest
 
-from app.api.schemas.todo import TodosOut, TodosUpdate
+from app.api.schemas.todo import TodosResponse, TodosUpdateRequest
 
 
 @pytest.mark.parametrize(
@@ -20,7 +20,7 @@ def test_create_todo_authenticated(client, create_user, auth_headers, title, des
                            headers=auth_headers(user),
                            json=todo_data)
     assert response.status_code == 201
-    todo = TodosOut(**response.json())
+    todo = TodosResponse(**response.json())
     assert todo.title == todo_data["title"]
     assert todo.description == todo_data["description"]
 
@@ -45,7 +45,7 @@ def test_modify_owned_todo(client, create_user, create_todo, auth_headers):
     response = client.put(f"/todos/{todo.id}", headers=auth_headers(user), json=new_todo)
 
     assert response.status_code == 200
-    updated_todo = TodosUpdate(**response.json())
+    updated_todo = TodosUpdateRequest(**response.json())
     assert updated_todo.title == new_todo["title"]
     assert updated_todo.description == new_todo["description"]
 

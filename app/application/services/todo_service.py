@@ -1,6 +1,6 @@
 from app.infrastructure.database.models import User
 from app.infrastructure.repositories import TodoRepository
-from app.api.schemas.todo import TodosCreate, TodosUpdate, TodosPatch
+from app.api.schemas.todo import TodosCreateRequest, TodosUpdateRequest, TodosPatchRequest
 from app.application.services.exceptions import UnfoundTodo, AccessUnauthorized
 
 class TodoService:
@@ -8,7 +8,7 @@ class TodoService:
         self.todo_repository = todo_repository
         self.user = user
 
-    def create_todo(self, todo: TodosCreate):
+    def create_todo(self, todo: TodosCreateRequest):
         return self.todo_repository.create(
             title=todo.title,
             description=todo.description,
@@ -43,7 +43,7 @@ class TodoService:
         return existing_todo
 
 
-    def update_todo(self, todo_id: int, todo: TodosUpdate):
+    def update_todo(self, todo_id: int, todo: TodosUpdateRequest):
         existing_todo = self.get_owned_todo(todo_id)
 
         update_data = todo.model_dump()
@@ -51,7 +51,7 @@ class TodoService:
         return self.todo_repository.update(existing_todo, update_data)
 
 
-    def patch_todo(self, todo_id: int, todo: TodosPatch):
+    def patch_todo(self, todo_id: int, todo: TodosPatchRequest):
         existing_todo = self.get_owned_todo(todo_id)
 
         update_data = todo.model_dump(exclude_unset=True)
