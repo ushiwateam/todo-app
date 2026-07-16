@@ -9,13 +9,13 @@ class User:
 
 
 @dataclass(slots=True)
-class NewUser:
+class UserRegisterCommand:
     name: str
     email: str
     password: str
 
 
 @dataclass(slots=True)
-class UserCredentials:
+class UserLoginCommand:
     email: str
     password: str

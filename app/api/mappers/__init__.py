@@ -1,1 +1,1 @@
-from app.api.mappers.user import to_new_user, to_user_credentials
+from app.api.mappers.user import to_user_register_command, to_user_login_command
