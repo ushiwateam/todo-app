@@ -2,11 +2,11 @@ from datetime import timedelta
 
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.repositories import UserRepository
-from app.services.entities import NewUser, UserCredentials
+from app.infrastructure.repositories import UserRepository
+from app.application.commands import NewUser, UserCredentials
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
-from app.services.exceptions import EmailRegistered, UnauthorizedUser
-from app.utils import create_access_token, prepare_token_data, pwd_context
+from app.application.services.exceptions import EmailRegistered, UnauthorizedUser
+from app.application.services.utils import create_access_token, prepare_token_data, pwd_context
 
 DUMMY_HASH = pwd_context.hash("dummypassword")
 

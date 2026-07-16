@@ -2,10 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Path, HTTPException, status
 
-from app.dependencies import TodoServiceDep
-from app.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
-from app.schemas.todo import TodosCreate, TodosOut, AllTodosOut, TodosUpdate, TodosPatch
-from app.services.exceptions import UnfoundTodo, AccessUnauthorized
+from app.api.dependencies import TodoServiceDep
+from app.api.schemas.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
+from app.api.schemas.todo import TodosCreate, TodosOut, AllTodosOut, TodosUpdate, TodosPatch
+from app.application.services.exceptions import UnfoundTodo, AccessUnauthorized
 
 router = APIRouter(tags=["Todos"], prefix="/todos", responses={
     **UNAUTHORIZED_RESPONSE

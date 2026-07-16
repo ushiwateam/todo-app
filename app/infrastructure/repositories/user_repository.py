@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.models import User
-from app.repositories.base import IRepository
+from app.infrastructure.database.models import User
+from app.infrastructure.repositories.base import IRepository
 
 
 class UserRepository(IRepository[User]):

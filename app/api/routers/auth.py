@@ -1,11 +1,11 @@
 from fastapi import APIRouter, status, HTTPException
 
-from app.dependencies import AuthServiceDep, FormDataDep
-from app.responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORIZED_RESPONSE
-from app.routers.mappers import to_new_user, to_user_credentials
-from app.schemas.user import UserRegister, UserLogin
-from app.services.auth_service import EmailRegistered
-from app.services.exceptions import UnauthorizedUser
+from app.api.dependencies import AuthServiceDep, FormDataDep
+from app.api.schemas.responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORIZED_RESPONSE
+from app.api.mappers import to_new_user, to_user_credentials
+from app.api.schemas.user import UserRegister, UserLogin
+from app.application.services.auth_service import EmailRegistered
+from app.application.services.exceptions import UnauthorizedUser
 
 router = APIRouter(tags=["Users"])
 
