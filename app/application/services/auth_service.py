@@ -3,7 +3,7 @@ from datetime import timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.infrastructure.repositories import UserRepository
-from app.application.commands import NewUser, UserCredentials
+from app.application.commands.user import UserRegisterCommand, UserLoginCommand
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.application.services.exceptions import EmailRegistered, UnauthorizedUser
 from app.application.services.utils import create_access_token, prepare_token_data, pwd_context
@@ -15,7 +15,7 @@ class AuthService:
     def __init__(self, user_repository: UserRepository):
         self.user_repository = user_repository
 
-    def register(self, user: NewUser):
+    def register(self, user: UserRegisterCommand):
         existing_user = self.user_repository.get_user_by_email(user.email)
 
         if existing_user:
@@ -43,7 +43,7 @@ class AuthService:
             return None
         return existing_user
 
-    def login(self, user: UserCredentials):
+    def login(self, user: UserLoginCommand):
         existing_user = self.authenticate_user(user.email, user.password)
         if not existing_user:
             raise UnauthorizedUser()
