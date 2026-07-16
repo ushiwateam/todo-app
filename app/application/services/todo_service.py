@@ -1,7 +1,7 @@
-from app.models import User
-from app.repositories import TodoRepository
-from app.schemas.todo import TodosCreate, TodosUpdate, TodosPatch
-from app.services.exceptions import UnfoundTodo, AccessUnauthorized
+from app.infrastructure.database.models import User
+from app.infrastructure.repositories import TodoRepository
+from app.api.schemas.todo import TodosCreate, TodosUpdate, TodosPatch
+from app.application.services.exceptions import UnfoundTodo, AccessUnauthorized
 
 class TodoService:
     def __init__(self, todo_repository: TodoRepository, user: User):

@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, String, Text, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.infrastructure.database.session import Base
 
 
 class Todo(Base):

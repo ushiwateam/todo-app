@@ -4,7 +4,7 @@ from typing import Generic, Type, TypeVar, List
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database import Base
+from app.infrastructure.database.session import Base
 
 T = TypeVar("T", bound=Base)
 
