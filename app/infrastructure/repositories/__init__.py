@@ -1,2 +1,2 @@
-from app.infrastructure.repositories.user_repository import UserRepository
-from app.infrastructure.repositories.todo_repository import TodoRepository
+from app.infrastructure.repositories.user_repository import UserSqlAlchemyRepository
+from app.infrastructure.repositories.todo_repository import TodoSqlAlchemyRepository
