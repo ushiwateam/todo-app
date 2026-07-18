@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
 from app.infrastructure.database.session import SessionLocal
 from app.infrastructure.database.models.user import User
-from app.infrastructure.repositories import UserRepository, TodoRepository
+from app.infrastructure.repositories import UserSqlAlchemyRepository, TodoSqlAlchemyRepository
 from app.application.services.auth_service import AuthService
 from app.application.services.todo_service import TodoService
 
@@ -49,13 +49,13 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbDep):
     return existing_user
 
 def get_user_repository(db: DbDep):
-    return UserRepository(db)
+    return UserSqlAlchemyRepository(db)
 
 def get_todo_repository(db: DbDep):
-    return TodoRepository(db)
+    return TodoSqlAlchemyRepository(db)
 
-UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
-TodoRepositoryDep = Annotated[TodoRepository, Depends(get_todo_repository)]
+UserRepositoryDep = Annotated[UserSqlAlchemyRepository, Depends(get_user_repository)]
+TodoRepositoryDep = Annotated[TodoSqlAlchemyRepository, Depends(get_todo_repository)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 FormDataDep = Annotated[OAuth2PasswordRequestForm, Depends()]
 

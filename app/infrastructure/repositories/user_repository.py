@@ -1,21 +1,25 @@
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database.models import User
-from app.infrastructure.repositories.base import IRepository
+from app.infrastructure.database.models import User as ModelUser
+from app.domain.entities import User as DomainUser
+from app.infrastructure.repositories.base import ISqlAlchemyRepository, TDomain
+from app.infrastructure.mappers.user import to_model, to_entity
 
 
-class UserRepository(IRepository[User]):
+class UserSqlAlchemyRepository(ISqlAlchemyRepository[DomainUser, ModelUser]):
     def __init__(self, db: Session):
-        super().__init__(db, User)
+        super().__init__(db, ModelUser)
 
-    def create_user(self, name: str, email: str, password: str) -> User:
-        return self.create(
-            name=name,
-            email=email,
-            password=password,
-        )
+    @staticmethod
+    def to_model(entity: DomainUser) -> ModelUser:
+        return to_model(entity)
 
-    def get_user_by_email(self, email: str) -> User | None:
-        return self.get_one_or_none(User.email == email)
+    @staticmethod
+    def to_entity(instance: ModelUser) -> DomainUser:
+        return to_entity(instance)
+
+    def get_user_by_email(self, email: str) -> DomainUser | None:
+        instance = self.get_one_or_none(ModelUser.email == email)
+        return self._to_entity_or_none(instance)
 
 

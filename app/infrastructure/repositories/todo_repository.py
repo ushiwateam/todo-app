@@ -2,10 +2,10 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database.models import Todo
-from app.infrastructure.repositories.base import IRepository
+from app.infrastructure.repositories.base import ISqlAlchemyRepository
 
 
-class TodoRepository(IRepository[Todo]):
+class TodoSqlAlchemyRepository(ISqlAlchemyRepository[Todo, Todo]):
     def __init__(self, db: Session):
         super().__init__(db, Todo)
 

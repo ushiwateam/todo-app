@@ -2,17 +2,18 @@ from datetime import timedelta
 
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.infrastructure.repositories import UserRepository
+from app.infrastructure.repositories import UserSqlAlchemyRepository
 from app.application.commands.user import UserRegisterCommand, UserLoginCommand
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.application.services.exceptions import EmailRegistered, UnauthorizedUser
 from app.application.services.utils import create_access_token, prepare_token_data, pwd_context
+from app.domain.entities import User
 
 DUMMY_HASH = pwd_context.hash("dummypassword")
 
 
 class AuthService:
-    def __init__(self, user_repository: UserRepository):
+    def __init__(self, user_repository: UserSqlAlchemyRepository):
         self.user_repository = user_repository
 
     def register(self, user: UserRegisterCommand):
@@ -23,11 +24,12 @@ class AuthService:
 
         hashed_password = pwd_context.hash(user.password)
 
-        new_user = self.user_repository.create_user(
+        new_entity_user = User(
             name=user.name,
             email=user.email,
             password=hashed_password
         )
+        new_user = self.user_repository.create(new_entity_user)
 
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
         token_data = prepare_token_data(new_user)

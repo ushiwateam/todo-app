@@ -1,10 +1,10 @@
 from app.infrastructure.database.models import User
-from app.infrastructure.repositories import TodoRepository
+from app.infrastructure.repositories import TodoSqlAlchemyRepository
 from app.api.schemas.todo import TodosCreateRequest, TodosUpdateRequest, TodosPatchRequest
 from app.application.services.exceptions import UnfoundTodo, AccessUnauthorized
 
 class TodoService:
-    def __init__(self, todo_repository: TodoRepository, user: User):
+    def __init__(self, todo_repository: TodoSqlAlchemyRepository, user: User):
         self.todo_repository = todo_repository
         self.user = user
 
