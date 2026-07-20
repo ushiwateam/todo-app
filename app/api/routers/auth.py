@@ -5,7 +5,7 @@ from app.api.responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORI
 from app.api.mappers import to_user_register_command, to_user_login_command
 from app.api.schemas.user import UserRegisterRequest, UserLoginRequest
 from app.application.services.auth_service import EmailRegistered
-from app.application.services.exceptions import UnauthorizedUser
+from app.application.services.exceptions import InvalidCredentials
 
 router = APIRouter(tags=["Users"])
 
@@ -43,7 +43,7 @@ def login_route(
 ):
     try:
         return auth_service.login(to_user_login_command(user))
-    except UnauthorizedUser as e:
+    except InvalidCredentials as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.detail
