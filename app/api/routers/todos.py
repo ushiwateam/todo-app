@@ -2,10 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Path, HTTPException, status
 
+from app.api.mappers.todo import to_todos_create_command, to_todos_update_command, to_todos_patch_command
 from app.dependencies import TodoServiceDep
 from app.api.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
 from app.api.schemas.todo import TodosCreateRequest, TodosResponse, TodoListResponse, TodosUpdateRequest, TodosPatchRequest
-from app.application.services.exceptions import UnfoundTodo, AccessUnauthorized
+from app.application.services.exceptions import TodoNotFound, AccessUnauthorized
 
 router = APIRouter(tags=["Todos"], prefix="/todos", responses={
     **UNAUTHORIZED_RESPONSE
@@ -23,7 +24,7 @@ def create_todo_route(
         todo: TodosCreateRequest,
         todo_service: TodoServiceDep
 ):
-    return todo_service.create_todo(todo)
+    return todo_service.create_todo(to_todos_create_command(todo))
 
 
 @router.get(
@@ -57,8 +58,8 @@ def update_todo_route(
         todo: TodosUpdateRequest
 ):
     try:
-        return todo_service.update_todo(todo_id, todo)
-    except UnfoundTodo as e:
+        return todo_service.update_todo(todo_id, to_todos_update_command(todo))
+    except TodoNotFound as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.detail
@@ -86,8 +87,8 @@ def patch_todo_route(
         todo: TodosPatchRequest
 ):
     try:
-        return todo_service.patch_todo(todo_id, todo)
-    except UnfoundTodo as e:
+        return todo_service.patch_todo(todo_id, to_todos_patch_command(todo))
+    except TodoNotFound as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.detail
@@ -114,7 +115,7 @@ def delete_todo_route(
 ):
     try:
         return todo_service.delete_todo(todo_id)
-    except UnfoundTodo as e:
+    except TodoNotFound as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.detail

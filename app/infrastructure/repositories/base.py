@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Generic, Type, TypeVar, List
+from typing import Generic, Type, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import select, delete, update
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database.session import Base
@@ -38,8 +38,10 @@ class ISqlAlchemyRepository(ABC, Generic[TDomain, TModel]):
         return self.to_entity(instance) if instance is not None else None
 
     def get_by_id(self, instance_id: int) -> TDomain | None:
-        instance = self.db.get(self.model, instance_id)
-        return self._to_entity_or_none(instance)
+        return self._to_entity_or_none(self._get_by_id_model(instance_id))
+
+    def _get_by_id_model(self, instance_id: int) -> TModel | None:
+        return self.db.get(self.model, instance_id)
 
     def get_one_or_none(self, *conditions) -> TDomain | None:
         statement = select(self.model).where(*conditions)
@@ -62,17 +64,26 @@ class ISqlAlchemyRepository(ABC, Generic[TDomain, TModel]):
 
         return [self.to_entity(instance) for instance in self.db.scalars(statement)]
 
-    def delete(self, entity: TDomain) -> None:
-        instance = self.to_model(entity)
-        self.db.delete(instance)
+    def delete(self, instance_id: int):
+        statement = delete(self.model).where(
+            self.model.id == instance_id
+        )
+
+        self.db.execute(statement)
         self.db.commit()
 
-    def update(self, entity: TDomain, data: dict) -> TDomain:
-        instance = self.to_model(entity)
-        for key, value in data.items():
-            setattr(instance, key, value)
+    def update(self, instance_id, data: dict) -> TDomain:
+        statement = (
+            update(self.model)
+            .where(self.model.id == instance_id)
+            .values(**data)
+            .returning(self.model)
+        )
+
+        instance = self.db.execute(statement).scalar_one()
+
+        domain_entity = self.to_entity(instance)
 
         self.db.commit()
-        self.db.refresh(instance)
 
-        return self.to_entity(instance)
+        return domain_entity
