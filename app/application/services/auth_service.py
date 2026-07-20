@@ -5,7 +5,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.infrastructure.repositories import UserSqlAlchemyRepository
 from app.application.commands.user import UserRegisterCommand, UserLoginCommand
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
-from app.application.services.exceptions import EmailRegistered, InvalidCredentials
+from app.application.exceptions import InvalidCredentialsError
+from app.domain.exceptions import EmailAlreadyRegisteredError
 from app.application.services.utils import create_access_token, prepare_token_data, pwd_context
 from app.domain.entities import User
 
@@ -20,7 +21,7 @@ class AuthService:
         existing_user = self.user_repository.get_user_by_email(user.email)
 
         if existing_user:
-            raise EmailRegistered()
+            raise EmailAlreadyRegisteredError()
 
         hashed_password = pwd_context.hash(user.password)
 
@@ -48,7 +49,7 @@ class AuthService:
     def login(self, user: UserLoginCommand):
         existing_user = self.authenticate_user(user.email, user.password)
         if not existing_user:
-            raise InvalidCredentials()
+            raise InvalidCredentialsError()
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
         token_data = prepare_token_data(existing_user)
         token = create_access_token(token_data, access_token_expires)
@@ -57,7 +58,7 @@ class AuthService:
     def token_login(self, form_data: OAuth2PasswordRequestForm):
         existing_user = self.authenticate_user(form_data.username, form_data.password)
         if not existing_user:
-            raise InvalidCredentials()
+            raise InvalidCredentialsError()
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
         token_data = prepare_token_data(existing_user)
         token = create_access_token(token_data, access_token_expires)

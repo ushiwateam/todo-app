@@ -3,10 +3,11 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Path, HTTPException, status
 
 from app.api.mappers.todo import to_todos_create_command, to_todos_update_command, to_todos_patch_command
+from app.application.exceptions import TodoNotFoundError
 from app.dependencies import TodoServiceDep
 from app.api.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
 from app.api.schemas.todo import TodosCreateRequest, TodosResponse, TodoListResponse, TodosUpdateRequest, TodosPatchRequest
-from app.application.services.exceptions import TodoNotFound, AccessUnauthorized
+from app.domain.exceptions import UnauthorizedAccessError
 
 router = APIRouter(tags=["Todos"], prefix="/todos", responses={
     **UNAUTHORIZED_RESPONSE
@@ -59,12 +60,12 @@ def update_todo_route(
 ):
     try:
         return todo_service.update_todo(todo_id, to_todos_update_command(todo))
-    except TodoNotFound as e:
+    except TodoNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.detail
         )
-    except AccessUnauthorized as e:
+    except UnauthorizedAccessError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=e.detail
@@ -88,12 +89,12 @@ def patch_todo_route(
 ):
     try:
         return todo_service.patch_todo(todo_id, to_todos_patch_command(todo))
-    except TodoNotFound as e:
+    except TodoNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.detail
         )
-    except AccessUnauthorized as e:
+    except UnauthorizedAccessError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=e.detail
@@ -115,12 +116,12 @@ def delete_todo_route(
 ):
     try:
         return todo_service.delete_todo(todo_id)
-    except TodoNotFound as e:
+    except TodoNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.detail
         )
-    except AccessUnauthorized as e:
+    except UnauthorizedAccessError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=e.detail
