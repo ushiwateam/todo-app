@@ -7,12 +7,12 @@ class EmailRegistered(ServiceExceptions):
     def __init__(self):
         super().__init__(detail="Email already registered")
 
-class UnauthorizedUser(ServiceExceptions):
+class InvalidCredentials(ServiceExceptions):
     def __init__(self):
         super().__init__(detail="Email inexistant ou mot de passe incorrect")
 
 
-class UnfoundTodo(ServiceExceptions):
+class TodoNotFound(ServiceExceptions):
     def __init__(self):
         super().__init__(detail="Todo not found")
 
