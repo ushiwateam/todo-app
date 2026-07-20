@@ -2,11 +2,12 @@ from sqlalchemy.orm import Session
 
 from app.infrastructure.database.models import User as ModelUser
 from app.domain.entities import User as DomainUser
-from app.infrastructure.repositories.base import ISqlAlchemyRepository, TDomain
+from app.infrastructure.repositories.base import ISqlAlchemyRepository
+from app.domain.repositories.user import IUserRepository
 from app.infrastructure.mappers.user import to_model, to_entity
 
 
-class UserSqlAlchemyRepository(ISqlAlchemyRepository[DomainUser, ModelUser]):
+class UserSqlAlchemyRepository(ISqlAlchemyRepository[DomainUser, ModelUser], IUserRepository):
     def __init__(self, db: Session):
         super().__init__(db, ModelUser)
 
