@@ -1,8 +1,8 @@
 from app.application.commands.todo import TodoCreateCommand, TodoUpdateCommand, TodoPatchCommand
-from app.domain.entities.todo import Todo
-from app.infrastructure.database.models import User, Todo as TodoModel
+from app.domain.entities import Todo, User
 from app.infrastructure.repositories import TodoSqlAlchemyRepository
-from app.application.services.exceptions import TodoNotFound, AccessUnauthorized
+from app.application.exceptions import TodoNotFoundError
+from app.domain.exceptions import UnauthorizedAccessError
 
 
 class TodoService:
@@ -36,10 +36,10 @@ class TodoService:
         existing_todo = self.todo_repository.get_by_id(todo_id)
 
         if not existing_todo:
-            raise TodoNotFound()
+            raise TodoNotFoundError()
 
         if self.user.id != existing_todo.user_id:
-            raise AccessUnauthorized()
+            raise UnauthorizedAccessError()
 
         return existing_todo
 
