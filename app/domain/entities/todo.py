@@ -4,7 +4,7 @@ from dataclasses import dataclass, asdict
 @dataclass(slots=True)
 class Todo:
     title: str
-    description: str
+    description: str | None
     user_id: int
     id: int | None = None
 
