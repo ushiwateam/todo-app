@@ -13,7 +13,6 @@ from app.main import app
 from app.infrastructure.database.session import Base
 from app.infrastructure.database.models import User, Todo
 
-
 TEST_DATABASE_URL = "sqlite://"
 
 engine = create_engine(
@@ -81,11 +80,11 @@ def create_user(db):
 
 @pytest.fixture
 def create_todo(db):
-    def _create_todo(user: User,**kwargs):
+    def _create_todo(user: User, **kwargs):
         todo = Todo(
             title=kwargs.get("title", "Test title"),
             description=kwargs.get("description", "dummy description"),
-            user_id = user.id
+            user_id=user.id
         )
 
         db.add(todo)
@@ -95,6 +94,7 @@ def create_todo(db):
 
     return _create_todo
 
+
 @pytest.fixture
 def auth_headers():
     def _auth_headers(user: User):
@@ -103,3 +103,18 @@ def auth_headers():
         return {"Authorization": f"Bearer {token}"}
 
     return _auth_headers
+
+
+@pytest.fixture
+def create_user_entity():
+    def _create_user(**kwargs) -> User:
+        defaults = {
+            "id": 1,
+            "name": "user",
+            "email": "user@example.com",
+            "password": "password",
+        }
+
+        return User(**(defaults | kwargs))
+
+    return _create_user
