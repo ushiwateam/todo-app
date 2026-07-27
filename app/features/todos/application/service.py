@@ -1,8 +1,9 @@
-from app.application.commands.todo import TodoCreateCommand, TodoUpdateCommand, TodoPatchCommand
-from app.domain.entities import Todo, User
-from app.infrastructure.repositories import TodoSqlAlchemyRepository
-from app.application.exceptions import TodoNotFoundError
-from app.domain.exceptions import UnauthorizedAccessError
+from app.features.auth.domain.entity import User
+from app.features.todos.application.commands import TodoCreateCommand, TodoUpdateCommand, TodoPatchCommand
+from app.features.todos.application.exceptions import TodoNotFoundError
+from app.features.todos.domain.entity import Todo
+from app.features.todos.domain.exceptions import UnauthorizedAccessError
+from app.features.todos.infrastructure.repository import TodoSqlAlchemyRepository
 
 
 class TodoService:

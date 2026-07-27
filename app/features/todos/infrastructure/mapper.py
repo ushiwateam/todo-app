@@ -1,5 +1,5 @@
-from app.domain.entities import Todo as DomainTodo
-from app.infrastructure.database.models import Todo as TodoModel
+from app.features.todos.domain.entity import Todo as DomainTodo
+from app.features.todos.infrastructure.model import Todo as TodoModel
 
 
 def to_entity(model: TodoModel) -> DomainTodo:

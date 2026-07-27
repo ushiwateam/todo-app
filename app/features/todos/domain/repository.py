@@ -1,7 +1,7 @@
 from typing import List
 
-from app.domain.repositories.base import IRepository
-from app.domain.entities.todo import Todo
+from app.features.todos.domain.entity import Todo
+from app.shared.domain.base_repository import IRepository
 
 
 class ITodoRepository(IRepository):

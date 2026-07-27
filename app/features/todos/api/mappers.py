@@ -1,5 +1,5 @@
-from app.api.schemas.todo import TodosCreateRequest, TodosUpdateRequest, TodosPatchRequest
-from app.application.commands.todo import TodoCreateCommand, TodoUpdateCommand, TodoPatchCommand
+from app.features.todos.api.schemas import TodosCreateRequest, TodosUpdateRequest, TodosPatchRequest
+from app.features.todos.application.commands import TodoCreateCommand, TodoUpdateCommand, TodoPatchCommand
 
 
 def to_todos_create_command(data: TodosCreateRequest) -> TodoCreateCommand:
