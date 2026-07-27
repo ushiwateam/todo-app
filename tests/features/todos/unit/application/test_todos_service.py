@@ -2,9 +2,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.domain.entities import Todo
-from app.application.commands.todo import TodoCreateCommand, TodoUpdateCommand, TodoPatchCommand
-from app.application.services.todo_service import TodoService
+from app.features.todos.application.commands import TodoCreateCommand, TodoPatchCommand, TodoUpdateCommand
+from app.features.todos.application.service import TodoService
+from app.features.todos.domain.entity import Todo
+
 
 
 @pytest.mark.parametrize(
