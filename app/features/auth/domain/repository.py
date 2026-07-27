@@ -1,5 +1,5 @@
-from app.domain.entities.user import User
-from app.domain.repositories.base import IRepository
+from app.features.auth.domain.entity import User
+from app.shared.domain.base_repository import IRepository
 
 
 class IUserRepository(IRepository):

@@ -1,11 +1,11 @@
 from fastapi import APIRouter, status, HTTPException
 
-from app.application.exceptions import InvalidCredentialsError
 from app.dependencies import AuthServiceDep, FormDataDep
-from app.api.responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORIZED_RESPONSE
-from app.api.mappers import to_user_register_command, to_user_login_command
-from app.api.schemas.user import UserRegisterRequest, UserLoginRequest
-from app.domain.exceptions import EmailAlreadyRegisteredError
+from app.features.auth.api.mapper import to_user_register_command, to_user_login_command
+from app.features.auth.application.exceptions import InvalidCredentialsError
+from app.features.auth.domain.exceptions import EmailAlreadyRegisteredError
+from app.shared.api.responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORIZED_RESPONSE
+from app.features.auth.api.schemas import UserRegisterRequest, UserLoginRequest
 
 router = APIRouter(tags=["Users"])
 

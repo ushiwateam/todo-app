@@ -4,7 +4,7 @@ from jose import jwt
 from passlib.context import CryptContext
 
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
-from app.infrastructure.database.models.user import User
+from app.features.auth.infrastrcuture.model import User
 
 
 def create_access_token(data: dict, expires_delta: timedelta):

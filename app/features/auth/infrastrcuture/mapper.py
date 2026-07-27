@@ -1,5 +1,5 @@
-from app.domain.entities import User as DomainUser
-from app.infrastructure.database.models import User as UserModel
+from app.features.auth.domain.entity import User as DomainUser
+from app.features.auth.infrastrcuture.model import User as UserModel
 
 
 def to_entity(model: UserModel) -> DomainUser:

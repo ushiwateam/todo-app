@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database.models import User as ModelUser
-from app.domain.entities import User as DomainUser
-from app.infrastructure.repositories.base import ISqlAlchemyRepository
-from app.domain.repositories.user import IUserRepository
-from app.infrastructure.mappers.user import to_model, to_entity
+from app.features.auth.infrastrcuture.model import User as ModelUser
+from app.features.auth.domain.entity import User as DomainUser
+from app.shared.infrastructure.base_repository import ISqlAlchemyRepository
+from app.features.auth.domain.repository import IUserRepository
+from app.features.auth.infrastrcuture.mapper import to_model, to_entity
 
 
 class UserSqlAlchemyRepository(ISqlAlchemyRepository[DomainUser, ModelUser], IUserRepository):

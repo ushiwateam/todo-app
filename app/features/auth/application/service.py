@@ -2,13 +2,15 @@ from datetime import timedelta
 
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.infrastructure.repositories import UserSqlAlchemyRepository
-from app.application.commands.user import UserRegisterCommand, UserLoginCommand
+
+from app.features.auth.application.commands import UserRegisterCommand, UserLoginCommand
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
-from app.application.exceptions import InvalidCredentialsError
-from app.domain.exceptions import EmailAlreadyRegisteredError
-from app.application.services.utils import create_access_token, prepare_token_data, pwd_context
-from app.domain.entities import User
+from app.features.auth.application.exceptions import InvalidCredentialsError
+
+from app.features.auth.application.utils import create_access_token, prepare_token_data, pwd_context
+from app.features.auth.domain.entity import User
+from app.features.auth.domain.exceptions import EmailAlreadyRegisteredError
+from app.features.auth.infrastrcuture.repository import UserSqlAlchemyRepository
 
 DUMMY_HASH = pwd_context.hash("dummypassword")
 
