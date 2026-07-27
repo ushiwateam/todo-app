@@ -1,4 +1,4 @@
-from app.api.schemas.errors import ErrorResponse
+from app.shared.api.errors import ErrorResponse
 
 UNAUTHORIZED_RESPONSE = {
     401: {

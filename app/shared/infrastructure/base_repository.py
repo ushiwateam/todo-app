@@ -4,7 +4,7 @@ from typing import Generic, Type, TypeVar
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database.session import Base
+from app.shared.database.session import Base
 
 TModel = TypeVar("TModel", bound=Base)
 TDomain = TypeVar("TDomain")
