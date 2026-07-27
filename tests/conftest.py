@@ -6,12 +6,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.application.services.utils import pwd_context, create_access_token, prepare_token_data
+from app.features.auth.application.utils import pwd_context, create_access_token, prepare_token_data
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.dependencies import get_db
+from app.features.auth.infrastrcuture.model import User
+from app.features.todos.infrastructure.model import Todo
 from app.main import app
-from app.infrastructure.database.session import Base
-from app.infrastructure.database.models import User, Todo
+from app.shared.database.session import Base
 
 TEST_DATABASE_URL = "sqlite://"
 
