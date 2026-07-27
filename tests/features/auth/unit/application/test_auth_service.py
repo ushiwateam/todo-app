@@ -1,11 +1,11 @@
 from unittest.mock import Mock, patch
 from pytest import raises
 
-from app.application.commands.user import UserRegisterCommand, UserLoginCommand
-from app.application.exceptions import InvalidCredentialsError
-from app.application.services.auth_service import AuthService
-from app.domain.exceptions import EmailAlreadyRegisteredError
-from app.infrastructure.database.models import User
+from app.features.auth.application.commands import UserRegisterCommand, UserLoginCommand
+from app.features.auth.application.exceptions import InvalidCredentialsError
+from app.features.auth.application.service import AuthService
+from app.features.auth.domain.entity import User
+from app.features.auth.domain.exceptions import EmailAlreadyRegisteredError
 
 user_id = 1
 name = "user"
@@ -35,15 +35,15 @@ def test_register_user(
 
     with (
         patch(
-            "app.application.services.auth_service.pwd_context.hash",
+            "app.features.auth.application.service.pwd_context.hash",
             return_value="hashed-password",
         ),
         patch(
-            "app.application.services.auth_service.prepare_token_data",
+            "app.features.auth.application.service.prepare_token_data",
             return_value={"sub": "1", "email": "user@example.com"},
         ),
         patch(
-            "app.application.services.auth_service.create_access_token",
+            "app.features.auth.application.service.create_access_token",
             return_value="test-token",
         ),
     ):
@@ -104,15 +104,15 @@ def test_login_user():
 
     with (
         patch(
-            "app.application.services.auth_service.pwd_context.hash",
+            "app.features.auth.application.service.pwd_context.hash",
             return_value=hashed_password,
         ),
         patch(
-            "app.application.services.auth_service.prepare_token_data",
+            "app.features.auth.application.service.prepare_token_data",
             return_value={"sub": str(user_id), "email": email},
         ),
         patch(
-            "app.application.services.auth_service.create_access_token",
+            "app.features.auth.application.service.create_access_token",
             return_value=token,
         ),
         patch.object(
@@ -143,15 +143,15 @@ def test_login_non_authenticated_user_():
 
     with (
         patch(
-            "app.application.services.auth_service.pwd_context.hash",
+            "app.features.auth.application.service.pwd_context.hash",
             return_value=hashed_password,
         ),
         patch(
-            "app.application.services.auth_service.prepare_token_data",
+            "app.features.auth.application.service.prepare_token_data",
             return_value={"sub": str(user_id), "email": email},
         ),
         patch(
-            "app.application.services.auth_service.create_access_token",
+            "app.features.auth.application.service.create_access_token",
             return_value=token,
         ),
         patch.object(
