@@ -2,9 +2,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.domain.entities import Todo
-from app.application.commands.todo import TodoCreateCommand, TodoUpdateCommand, TodoPatchCommand
-from app.application.services.todo_service import TodoService
+from app.business.entities import Todo
+from app.business.services.todo_service import TodoService
 
 
 @pytest.mark.parametrize(
@@ -14,7 +13,7 @@ from app.application.services.todo_service import TodoService
         ("todo 2", None),
     ],
 )
-def test_create_todo(title, description, create_user_entity):
+def test_add_todo(title, description, create_user_entity):
     user = create_user_entity()
     saved_todo = Todo(
         title=title,
@@ -22,24 +21,22 @@ def test_create_todo(title, description, create_user_entity):
         user_id=user.id
     )
     repository = Mock()
-    repository.create.return_value = saved_todo
+    repository.add_todo.return_value = saved_todo
 
     service = TodoService(repository, user)
 
-    command = TodoCreateCommand(
+    result = service.add_todo(
         title=saved_todo.title,
         description=saved_todo.description
     )
 
-    result = service.create_todo(command)
+    repository.add_todo.assert_called_once()
 
-    repository.create.assert_called_once()
+    added_todo = repository.add_todo.call_args.args[0]
 
-    created_todo = repository.create.call_args.args[0]
-
-    assert created_todo.title == title
-    assert created_todo.description == description
-    assert created_todo.user_id == user.id
+    assert added_todo.title == title
+    assert added_todo.description == description
+    assert added_todo.user_id == user.id
     assert result is saved_todo
 
 
@@ -63,45 +60,47 @@ def test_update_todo(title, description, create_user_entity):
     repository = Mock()
     service = TodoService(repository, user)
 
-    command = TodoUpdateCommand(
-        title="modified_title",
-        description="modified_description",
-    )
+    modify_data = {
+        "title": "modified_title",
+        "description": "modified_description"
+    }
 
     modified_todo = Todo(
         id=existing_todo.id,
-        title=command.title,
-        description=command.description,
+        title=modify_data["title"],
+        description=modify_data["description"],
         user_id=user.id,
     )
-    repository.update.return_value = modified_todo
+    repository.modify_todo.return_value = modified_todo
 
     with patch.object(
             service,
             "get_owned_todo",
             return_value=existing_todo,
     ) as mock_owned_todo:
-        result = service.update_todo(existing_todo.id, command)
+        result = service.update_todo(existing_todo.id,
+                                     title=modify_data["title"],
+                                     description=modify_data["description"])
 
     mock_owned_todo.assert_called_once_with(existing_todo.id)
-    repository.update.assert_called_once()
+    repository.modify_todo.assert_called_once()
 
-    todo_id, update_data = repository.update.call_args.args
+    todo_id, update_data = repository.modify_todo.call_args.args
 
     assert todo_id == existing_todo.id
-    assert update_data.get("title") == command.title
-    assert update_data.get("description") == command.description
+    assert update_data.get("title") == modify_data["title"]
+    assert update_data.get("description") == modify_data["description"]
     assert result is modified_todo
 
 
 @pytest.mark.parametrize(
-    "title,description,update_data",
+    "title,description,modify_data",
     [
         ("todo 1", "desc 1", {"title": "new_title"}),
         ("todo 1", None, {"description": "new_descr"})
     ],
 )
-def test_patch_todo(title, description, update_data ,create_user_entity):
+def test_patch_todo(title, description, modify_data, create_user_entity):
     user = create_user_entity()
 
     existing_todo = Todo(
@@ -110,36 +109,29 @@ def test_patch_todo(title, description, update_data ,create_user_entity):
         description=description,
         user_id=user.id,
     )
+    existing_todo_data = existing_todo.model_dump()
 
     repository = Mock()
     service = TodoService(repository, user)
 
-    command = TodoPatchCommand(
-        title=update_data.get("title"),
-        description=update_data.get("description")
-    )
-
-    modified_todo = Todo(
-        id=existing_todo.id,
-        title=command.title,
-        description=command.description,
-        user_id=user.id,
-    )
-    repository.update.return_value = modified_todo
+    modified_todo = Todo(**{**existing_todo_data, **modify_data})
+    repository.modify_todo.return_value = modified_todo
 
     with patch.object(
             service,
             "get_owned_todo",
             return_value=existing_todo,
     ) as mock_owned_todo:
-        result = service.patch_todo(existing_todo.id, command)
+        result = service.patch_todo(existing_todo.id, **modify_data)
 
     mock_owned_todo.assert_called_once_with(existing_todo.id)
-    repository.update.assert_called_once()
+    repository.modify_todo.assert_called_once()
 
-    todo_id, update_data = repository.update.call_args.args
+    todo_id, modify_data = repository.modify_todo.call_args.args
 
     assert todo_id == existing_todo.id
-    assert update_data.get("title") == command.title
-    assert update_data.get("description") == command.description
+    if "title" in modify_data:
+        assert modify_data.get("title") == modify_data["title"]
+    if "description" in modify_data:
+        assert modify_data.get("description") == modify_data["description"]
     assert result is modified_todo
