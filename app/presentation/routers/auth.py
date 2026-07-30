@@ -1,11 +1,11 @@
 from fastapi import APIRouter, status, HTTPException
 
-from app.application.exceptions import InvalidCredentialsError
+from app.business.exceptions.user import InvalidCredentialsError
 from app.dependencies import AuthServiceDep, FormDataDep
-from app.api.responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORIZED_RESPONSE
-from app.api.mappers import to_user_register_command, to_user_login_command
-from app.api.schemas.user import UserRegisterRequest, UserLoginRequest
-from app.domain.exceptions import EmailAlreadyRegisteredError
+from app.presentation.error_responses import EMAIL_ALREADY_REGISTERED_RESPONSE, LOGIN_UNAUTHORIZED_RESPONSE
+
+from app.presentation.schemas.user import UserRegisterRequest, UserLoginRequest
+from app.business.exceptions.user import EmailAlreadyRegisteredError
 
 router = APIRouter(tags=["Users"])
 
@@ -23,7 +23,10 @@ def register_route(
         auth_service: AuthServiceDep
 ):
     try:
-        return auth_service.register(to_user_register_command(user))
+        return auth_service.register(
+            email=user.email,
+            name=user.name,
+            password=user.password)
     except EmailAlreadyRegisteredError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -42,7 +45,10 @@ def login_route(
         auth_service: AuthServiceDep
 ):
     try:
-        return auth_service.login(to_user_login_command(user))
+        return auth_service.login(
+            email=user.email,
+            password=user.password
+        )
     except InvalidCredentialsError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

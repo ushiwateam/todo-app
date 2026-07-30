@@ -2,12 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Path, HTTPException, status
 
-from app.api.mappers.todo import to_todos_create_command, to_todos_update_command, to_todos_patch_command
-from app.application.exceptions import TodoNotFoundError
+
+from app.business.exceptions.todo import TodoNotFoundError
 from app.dependencies import TodoServiceDep
-from app.api.responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
-from app.api.schemas.todo import TodosCreateRequest, TodosResponse, TodoListResponse, TodosUpdateRequest, TodosPatchRequest
-from app.domain.exceptions import UnauthorizedAccessError
+from app.presentation.error_responses import UNAUTHORIZED_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
+from app.presentation.schemas.todo import TodosCreateRequest, TodosResponse, TodoListResponse, TodosUpdateRequest, TodosPatchRequest
+from app.business.exceptions import UnauthorizedAccessError
 
 router = APIRouter(tags=["Todos"], prefix="/todos", responses={
     **UNAUTHORIZED_RESPONSE
@@ -25,7 +25,7 @@ def create_todo_route(
         todo: TodosCreateRequest,
         todo_service: TodoServiceDep
 ):
-    return todo_service.create_todo(to_todos_create_command(todo))
+    return todo_service.add_todo(todo.title, todo.description)
 
 
 @router.get(
@@ -59,7 +59,7 @@ def update_todo_route(
         todo: TodosUpdateRequest
 ):
     try:
-        return todo_service.update_todo(todo_id, to_todos_update_command(todo))
+        return todo_service.update_todo(todo_id, todo.title, todo.description)
     except TodoNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -88,7 +88,7 @@ def patch_todo_route(
         todo: TodosPatchRequest
 ):
     try:
-        return todo_service.patch_todo(todo_id, to_todos_patch_command(todo))
+        return todo_service.patch_todo(todo_id, **todo.model_dump())
     except TodoNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
