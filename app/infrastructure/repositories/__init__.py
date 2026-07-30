@@ -1,2 +1,0 @@
-from app.infrastructure.repositories.user_repository import UserSqlAlchemyRepository
-from app.infrastructure.repositories.todo_repository import TodoSqlAlchemyRepository

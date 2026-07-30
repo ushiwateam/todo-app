@@ -1,9 +1,9 @@
-from app.domain.entities import User as DomainUser
-from app.infrastructure.database.models import User as UserModel
+from app.business.entities import User as EntityUser
+from app.data_access.database.models import User as UserModel
 
 
-def to_entity(model: UserModel) -> DomainUser:
-    return DomainUser(
+def to_entity(model: UserModel) -> EntityUser:
+    return EntityUser(
         id=model.id,
         name=model.name,
         email=model.email,
@@ -11,7 +11,7 @@ def to_entity(model: UserModel) -> DomainUser:
     )
 
 
-def to_model(entity: DomainUser) -> UserModel:
+def to_model(entity: EntityUser) -> UserModel:
     return UserModel(
         id=entity.id,
         name=entity.name,

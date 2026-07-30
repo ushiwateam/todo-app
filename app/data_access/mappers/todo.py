@@ -1,9 +1,9 @@
-from app.domain.entities import Todo as DomainTodo
-from app.infrastructure.database.models import Todo as TodoModel
+from app.business.entities import Todo as EntityTodo
+from app.data_access.database.models import Todo as TodoModel
 
 
-def to_entity(model: TodoModel) -> DomainTodo:
-    return DomainTodo(
+def to_entity(model: TodoModel) -> EntityTodo:
+    return EntityTodo(
         id=model.id,
         title=model.title,
         description=model.description,
@@ -11,7 +11,7 @@ def to_entity(model: TodoModel) -> DomainTodo:
     )
 
 
-def to_model(entity: DomainTodo) -> TodoModel:
+def to_model(entity: EntityTodo) -> TodoModel:
     return TodoModel(
         id=entity.id,
         title=entity.title,
