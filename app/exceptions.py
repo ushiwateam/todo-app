@@ -6,13 +6,13 @@ class AppError(Exception):
         super().__init__(self.detail)
 
 
-class DomainError(AppError):
+class PresentationError(AppError):
     pass
 
 
-class ApplicationError(AppError):
+class DataAccessError(AppError):
     pass
 
 
-class InfrastructureError(AppError):
+class BusinessError(AppError):
     pass

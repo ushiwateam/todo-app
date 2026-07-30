@@ -1,11 +1,10 @@
 from unittest.mock import Mock, patch
 from pytest import raises
 
-from app.application.commands.user import UserRegisterCommand, UserLoginCommand
-from app.application.exceptions import InvalidCredentialsError
-from app.application.services.auth_service import AuthService
-from app.domain.exceptions import EmailAlreadyRegisteredError
-from app.infrastructure.database.models import User
+from app.business.exceptions.user import InvalidCredentialsError
+from app.business.services.auth_service import AuthService
+from app.business.exceptions import EmailAlreadyRegisteredError
+from app.data_access.database.models import User
 
 user_id = 1
 name = "user"
@@ -27,32 +26,30 @@ def test_register_user(
 
     service = AuthService(repository)
 
-    command = UserRegisterCommand(
-        name=name,
-        email=email,
-        password=password
-    )
-
     with (
         patch(
-            "app.application.services.auth_service.pwd_context.hash",
+            "app.business.services.auth_service.pwd_context.hash",
             return_value="hashed-password",
         ),
         patch(
-            "app.application.services.auth_service.prepare_token_data",
+            "app.business.services.auth_service.prepare_token_data",
             return_value={"sub": "1", "email": "user@example.com"},
         ),
         patch(
-            "app.application.services.auth_service.create_access_token",
+            "app.business.services.auth_service.create_access_token",
             return_value="test-token",
         ),
     ):
-        result = service.register(command)
+        result = service.register(
+            name=name,
+            email=email,
+            password=password
+        )
 
     assert result == {"token": token}
-    repository.create.assert_called_once()
+    repository.register_user.assert_called_once()
 
-    created_user = repository.create.call_args.args[0]
+    created_user = repository.register_user.call_args.args[0]
 
     assert created_user.email == email
     assert created_user.password == hashed_password
@@ -70,19 +67,17 @@ def test_register_email_user(
 
     service = AuthService(repository)
 
-    command = UserRegisterCommand(
-        name=name,
-        email=email,
-        password=password,
-    )
-
     with raises(EmailAlreadyRegisteredError, match="Email already registered"):
-        service.register(command)
+        service.register(
+            name=name,
+            email=email,
+            password=password
+        )
 
     repository.get_user_by_email.assert_called_once_with(
         email
     )
-    repository.create.assert_not_called()
+    repository.register_user.assert_not_called()
 
 
 def test_login_user():
@@ -97,22 +92,17 @@ def test_login_user():
 
     service = AuthService(repository)
 
-    command = UserLoginCommand(
-        email=email,
-        password=password
-    )
-
     with (
         patch(
-            "app.application.services.auth_service.pwd_context.hash",
+            "app.business.services.auth_service.pwd_context.hash",
             return_value=hashed_password,
         ),
         patch(
-            "app.application.services.auth_service.prepare_token_data",
+            "app.business.services.auth_service.prepare_token_data",
             return_value={"sub": str(user_id), "email": email},
         ),
         patch(
-            "app.application.services.auth_service.create_access_token",
+            "app.business.services.auth_service.create_access_token",
             return_value=token,
         ),
         patch.object(
@@ -122,13 +112,13 @@ def test_login_user():
         ) as mock_authenticate
 
     ):
-        result = service.login(command)
+        result = service.login(
+            email=email,
+            password=password
+        )
 
     assert result == {"token": token}
-    mock_authenticate.assert_called_once_with(
-        command.email,
-        command.password,
-    )
+    mock_authenticate.assert_called_once_with(email, password)
 
 
 def test_login_non_authenticated_user_():
@@ -136,22 +126,17 @@ def test_login_non_authenticated_user_():
 
     service = AuthService(repository)
 
-    command = UserLoginCommand(
-        email=email,
-        password=password
-    )
-
     with (
         patch(
-            "app.application.services.auth_service.pwd_context.hash",
+            "app.business.services.auth_service.pwd_context.hash",
             return_value=hashed_password,
         ),
         patch(
-            "app.application.services.auth_service.prepare_token_data",
+            "app.business.services.auth_service.prepare_token_data",
             return_value={"sub": str(user_id), "email": email},
         ),
         patch(
-            "app.application.services.auth_service.create_access_token",
+            "app.business.services.auth_service.create_access_token",
             return_value=token,
         ),
         patch.object(
@@ -162,8 +147,8 @@ def test_login_non_authenticated_user_():
 
     ):
         with raises(InvalidCredentialsError, match="Email inexistant ou mot de passe incorrect"):
-            service.login(command)
-    mock_authenticate.assert_called_once_with(
-        command.email,
-        command.password,
-    )
+            service.login(
+                email=email,
+                password=password
+            )
+    mock_authenticate.assert_called_once_with(email, password)

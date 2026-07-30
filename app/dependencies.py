@@ -6,12 +6,17 @@ from sqlalchemy import select
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
+from app.business.interfaces.auth import IAuthService
+from app.business.interfaces.todo import ITodoService
 from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
-from app.infrastructure.database.session import SessionLocal
-from app.infrastructure.database.models.user import User
-from app.infrastructure.repositories import UserSqlAlchemyRepository, TodoSqlAlchemyRepository
-from app.application.services.auth_service import AuthService
-from app.application.services.todo_service import TodoService
+from app.data_access.interfaces.todo import ITodoRepository
+from app.data_access.interfaces.user import IUserRepository
+from app.data_access.database.session import SessionLocal
+from app.data_access.database.models.user import User
+from app.data_access.repositories.user_repository import UserSqlAlchemyRepository
+from app.data_access.repositories.todo_repository import TodoSqlAlchemyRepository
+from app.business.services.auth_service import AuthService
+from app.business.services.todo_service import TodoService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -54,17 +59,17 @@ def get_user_repository(db: DbDep):
 def get_todo_repository(db: DbDep):
     return TodoSqlAlchemyRepository(db)
 
-UserRepositoryDep = Annotated[UserSqlAlchemyRepository, Depends(get_user_repository)]
-TodoRepositoryDep = Annotated[TodoSqlAlchemyRepository, Depends(get_todo_repository)]
+UserRepositoryDep = Annotated[IUserRepository, Depends(get_user_repository)]
+TodoRepositoryDep = Annotated[ITodoRepository, Depends(get_todo_repository)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 FormDataDep = Annotated[OAuth2PasswordRequestForm, Depends()]
 
-def get_todo_service(todo_repository: TodoRepositoryDep, user: CurrentUserDep):
+def get_todo_service(todo_repository: TodoRepositoryDep, user: CurrentUserDep) -> ITodoService:
     return TodoService(todo_repository, user)
 
-TodoServiceDep = Annotated[TodoService, Depends(get_todo_service)]
+TodoServiceDep = Annotated[ITodoService, Depends(get_todo_service)]
 
-def get_auth_service(user_repository: UserRepositoryDep):
+def get_auth_service(user_repository: UserRepositoryDep) -> IAuthService:
     return AuthService(user_repository)
 
-AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+AuthServiceDep = Annotated[IAuthService, Depends(get_auth_service)]
