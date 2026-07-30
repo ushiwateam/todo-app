@@ -2,13 +2,13 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from app.business.entities.user import User
-from app.data_access.repositories.todo_repository import TodoSqlAlchemyRepository
+from app.data_access.interfaces.todo import ITodoRepository
 
 _UNSET = object()
 
 
 class ITodoService(ABC):
-    def __init__(self, todo_repository: TodoSqlAlchemyRepository, user: User):
+    def __init__(self, todo_repository: ITodoRepository, user: User):
         self.todo_repository = todo_repository
         self.user = user
 
