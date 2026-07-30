@@ -1,6 +1,6 @@
 import pytest
 
-from app.api.schemas.todo import TodosResponse, TodosUpdateRequest
+from app.presentation.schemas.todo import TodosResponse, TodosUpdateRequest
 
 
 @pytest.mark.parametrize(
