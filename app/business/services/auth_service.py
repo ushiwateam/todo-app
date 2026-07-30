@@ -2,35 +2,32 @@ from datetime import timedelta
 
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.infrastructure.repositories import UserSqlAlchemyRepository
-from app.application.commands.user import UserRegisterCommand, UserLoginCommand
+from app.business.interfaces.auth import IAuthService
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
-from app.application.exceptions import InvalidCredentialsError
-from app.domain.exceptions import EmailAlreadyRegisteredError
-from app.application.services.utils import create_access_token, prepare_token_data, pwd_context
-from app.domain.entities import User
+from app.business.exceptions.user import InvalidCredentialsError
+from app.business.exceptions.user import EmailAlreadyRegisteredError
+from app.security import create_access_token, prepare_token_data, pwd_context
+from app.business.entities.user import User
 
 DUMMY_HASH = pwd_context.hash("dummypassword")
 
 
-class AuthService:
-    def __init__(self, user_repository: UserSqlAlchemyRepository):
-        self.user_repository = user_repository
+class AuthService(IAuthService):
 
-    def register(self, user: UserRegisterCommand):
-        existing_user = self.user_repository.get_user_by_email(user.email)
+    def register(self, email: str, name: str, password: str):
+        existing_user = self.user_repository.get_user_by_email(email)
 
         if existing_user:
             raise EmailAlreadyRegisteredError()
 
-        hashed_password = pwd_context.hash(user.password)
+        hashed_password = pwd_context.hash(password)
 
         new_entity_user = User(
-            name=user.name,
-            email=user.email,
+            name=name,
+            email=email,
             password=hashed_password
         )
-        new_user = self.user_repository.create(new_entity_user)
+        new_user = self.user_repository.register_user(new_entity_user)
 
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
         token_data = prepare_token_data(new_user)
@@ -46,8 +43,8 @@ class AuthService:
             return None
         return existing_user
 
-    def login(self, user: UserLoginCommand):
-        existing_user = self.authenticate_user(user.email, user.password)
+    def login(self, email: str, password: str):
+        existing_user = self.authenticate_user(email, password)
         if not existing_user:
             raise InvalidCredentialsError()
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
