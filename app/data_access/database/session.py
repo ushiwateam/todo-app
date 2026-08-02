@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import sessionmaker
 
 from app.config import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
 
@@ -11,7 +11,3 @@ DATABASE_URL = (
 engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(bind=engine)
-
-
-class Base(DeclarativeBase):
-    pass
