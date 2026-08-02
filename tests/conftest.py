@@ -10,7 +10,7 @@ from app.security import pwd_context, create_access_token, prepare_token_data
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.dependencies import get_db
 from app.main import app
-from app.data_access.database.session import Base
+from app.data_access.database.base import Base
 from app.data_access.database.models import User, Todo
 
 TEST_DATABASE_URL = "sqlite://"
