@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"]
+        python-version: [ "3.11" ]
 
     steps:
       - name: Check out repository
@@ -30,4 +30,11 @@ jobs:
           pip install pytest
 
       - name: Run pytest
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: superpassword
+          POSTGRES_DB: todo_db
+          POSTGRES_PORT: 5432
+          POSTGRES_HOST: localhost
+          TOKEN_SECRET_KEY: d08b6af320834aff720fdff99c7dcc258fe8cc61d557ad105e237797e
         run: pytest
