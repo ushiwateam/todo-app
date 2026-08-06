@@ -38,6 +38,7 @@ pydantic-settings==2.14.1
 pydantic_core==2.46.4
 Pygments==2.20.0
 pytest==9.0.3
+pytest-archon==0.0.7
 python-dotenv==1.2.2
 python-jose==3.5.0
 python-multipart==0.0.27
