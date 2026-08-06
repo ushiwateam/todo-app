@@ -78,3 +78,15 @@ def test_data_access_should_not_import_business_internals():
         .should_not_import("app.business.services*", "app.business.interfaces*")
         .check("app", only_direct_imports=True)
     )
+
+
+def test_business_should_not_import_web_framework():
+    (
+        archrule(
+            "business_should_not_import_web_framework",
+            comment="Business logic must stay framework-agnostic — no direct dependency on FastAPI, Flask, Starlette, or Django",
+        )
+        .match("app.business*")
+        .should_not_import("fastapi*", "flask*", "starlette*", "django*")
+        .check("app", only_direct_imports=True)
+    )
