@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
-from fastapi.security import OAuth2PasswordRequestForm
-
+from app.business.entities import User
 from app.data_access.interfaces.user import IUserRepository
 
 
@@ -18,5 +17,9 @@ class IAuthService(ABC):
         pass
 
     @abstractmethod
-    def token_login(self, form_data: OAuth2PasswordRequestForm):
+    def get_current_user(self, token: str) -> User:
+        pass
+
+    @abstractmethod
+    def token_login(self, email, password):
         pass
