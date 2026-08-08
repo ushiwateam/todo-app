@@ -6,6 +6,7 @@ from app.presentation.error_responses import EMAIL_ALREADY_REGISTERED_RESPONSE, 
 
 from app.presentation.schemas.user import UserRegisterRequest, UserLoginRequest
 from app.business.exceptions.user import EmailAlreadyRegisteredError
+from tests.unit.application.services.test_auth import password
 
 router = APIRouter(tags=["Users"])
 
@@ -61,4 +62,4 @@ async def login_for_access_token(
         auth_service: AuthServiceDep,
         form_data: FormDataDep
 ):
-    return auth_service.token_login(form_data)
+    return auth_service.token_login(email=form_data.username, password=form_data.password)
