@@ -1,12 +1,12 @@
 from datetime import timedelta
 
-from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError
 
 from app.business.interfaces.auth import IAuthService
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.business.exceptions.user import InvalidCredentialsError
 from app.business.exceptions.user import EmailAlreadyRegisteredError
-from app.security import create_access_token, prepare_token_data, pwd_context
+from app.security import create_access_token, prepare_token_data, pwd_context, decode_access_token
 from app.business.entities.user import User
 
 DUMMY_HASH = pwd_context.hash("dummypassword")
@@ -52,11 +52,22 @@ class AuthService(IAuthService):
         token = create_access_token(token_data, access_token_expires)
         return {"token": token}
 
-    def token_login(self, form_data: OAuth2PasswordRequestForm):
-        existing_user = self.authenticate_user(form_data.username, form_data.password)
-        if not existing_user:
-            raise InvalidCredentialsError()
-        access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-        token_data = prepare_token_data(existing_user)
-        token = create_access_token(token_data, access_token_expires)
+    def token_login(self, email: str, password: str):
+        token = self.login(email=email, password=password)["token"]
         return {"access_token": token, "token_type": "bearer"}
+
+    def get_current_user(self, token: str) -> User:
+        try:
+            payload = decode_access_token(token)
+            user_id = payload.get("sub")
+            if user_id is None:
+                raise InvalidCredentialsError()
+            user_id = int(user_id)
+        except (JWTError, ValueError, TypeError):
+            raise InvalidCredentialsError()
+
+        existing_user = self.user_repository.get_user_by_id(user_id)
+        if existing_user is None or existing_user.email != payload.get("email"):
+            raise InvalidCredentialsError()
+
+        return existing_user
