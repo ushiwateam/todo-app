@@ -311,13 +311,37 @@ feature/<feature-name>
 
 ### Conventional Commits
 
+Commit messages follow [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
+and are **enforced by a `commit-msg` git hook** (`.githooks/commit-msg`). Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Format:
+
+```text
+<type>[optional scope][!]: <description>
+
+[optional body, after one blank line]
+
+[optional footer(s), after one blank line]
+```
+
+Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`,
+`revert`.
+
 ```text
 feat: add user registration endpoint
 feat: implement JWT authentication
-fix: handle duplicate email validation
+fix(auth): handle duplicate email validation
+feat(api)!: drop v1 todo payload
 docs: update README
 test: add authentication tests
 ```
+
+A message that doesn't match is rejected with an explanation, and the commit is aborted. The typed
+message is preserved — recover it with `git commit -e -F .git/COMMIT_EDITMSG`.
 
 ---
 

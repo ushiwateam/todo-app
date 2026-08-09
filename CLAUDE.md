@@ -24,6 +24,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Ignore `tests/Makefile` — it references a `features/...` test layout that no longer exists after the layered-architecture refactor.
 - CI: `.github/workflows/pytest.yml` runs `pytest` on push and on PRs into `main`.
 
+### Git hooks
+- `.githooks/commit-msg` enforces [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) on every commit (POSIX sh, no dependencies). Allowed types: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert` — note `feature:`, used in older commits, is **not** accepted.
+- Activate once per clone: `git config core.hooksPath .githooks`. Git can't version `.git/hooks/`, so hooks live in `.githooks/` and this config points at them.
+- Merge/revert/`fixup!`/`squash!` messages are skipped. Bypass for one commit with `git commit --no-verify`.
+
 ## Architecture
 
 This is a **layered architecture**, refactored from a flat FastAPI layout into three layers under `app/`. Each layer only knows about the layer(s) below it through interfaces, never concrete implementations:
