@@ -1,0 +1,119 @@
+#!/bin/sh
+#
+# commit-msg hook: validates the commit message against Conventional Commits v1.0.0.
+# https://www.conventionalcommits.org/en/v1.0.0/
+#
+# Valid message  -> exit 0, the commit proceeds normally.
+# Invalid message -> exit 1, git aborts the commit and this hook explains why.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+
+set -u
+
+MSG_FILE="$1"
+
+TYPES='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+HEADER_RE="^($TYPES)(\([^()]+\))?!?: .+"
+
+# ---------------------------------------------------------------------------
+# Preprocess: drop the `--verbose` diff section, drop comment lines, then trim
+# trailing blank lines. Without this we would validate git's own boilerplate.
+# ---------------------------------------------------------------------------
+MSG=$(
+    sed -e '/^# ------------------------ >8 ------------------------$/,$d' \
+        -e '/^[[:space:]]*#/d' "$MSG_FILE" |
+        sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba'
+)
+
+HEADER=$(printf '%s\n' "$MSG" | sed -n '1p')
+
+if [ -t 2 ]; then
+    RED=$(printf '\033[1;31m')
+    RESET=$(printf '\033[0m')
+else
+    RED=''
+    RESET=''
+fi
+
+fail() {
+    printf '\n%s✖  Commit rejected:%s the message does not follow Conventional Commits.\n\n' "$RED" "$RESET" >&2
+    printf '   Your message:\n' >&2
+    printf '%s\n' "$MSG" | sed 's/^/     /' >&2
+    printf '\n   Problem:\n     %s\n' "$1" >&2
+    cat >&2 <<EOF
+
+   Required format:
+     <type>[optional scope][!]: <description>
+
+     [optional body, after one blank line]
+
+     [optional footer(s), after one blank line]
+
+   Allowed types:
+     feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+
+   Examples:
+     feat: add user registration endpoint
+     fix(auth): handle duplicate email validation
+     feat(api)!: drop v1 todo payload
+
+   Your message was kept — recover it with:
+     git commit -e -F .git/COMMIT_EDITMSG
+
+   Spec: https://www.conventionalcommits.org/en/v1.0.0/
+
+EOF
+    exit 1
+}
+
+# ---------------------------------------------------------------------------
+# Skip messages git generates or manages itself; validating them would break
+# merge, revert and interactive rebase.
+# ---------------------------------------------------------------------------
+case "$HEADER" in
+Merge\ * | Revert\ * | fixup!* | squash!* | amend!*)
+    exit 0
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
+# Rule 1: the header must be `type(optional scope)!: description`.
+# ---------------------------------------------------------------------------
+if ! printf '%s\n' "$HEADER" | grep -Eq "$HEADER_RE"; then
+    case "$HEADER" in
+    '')
+        fail 'The commit message is empty.'
+        ;;
+    *': '*)
+        fail 'The type is missing or not one of the allowed types (it must be lowercase).'
+        ;;
+    *' :'*)
+        fail 'There must be no space before the colon — write "docs: ..." not "docs : ...".'
+        ;;
+    *:*)
+        fail 'The colon must be followed by a space and a description, e.g. "feat: add login".'
+        ;;
+    *)
+        fail 'The header must start with a type followed by ": ", e.g. "feat: add login".'
+        ;;
+    esac
+fi
+
+# ---------------------------------------------------------------------------
+# Rule 2: a body must begin one blank line after the description.
+# ---------------------------------------------------------------------------
+if [ "$(printf '%s\n' "$MSG" | wc -l)" -gt 1 ]; then
+    if [ -n "$(printf '%s\n' "$MSG" | sed -n '2p')" ]; then
+        fail 'The body must be separated from the description by one blank line.'
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Rule 3: the breaking-change footer token must be uppercase.
+# ---------------------------------------------------------------------------
+if printf '%s\n' "$MSG" | grep -Eqi '^breaking[ -]change[ -]?:' &&
+    ! printf '%s\n' "$MSG" | grep -Eq '^BREAKING[ -]CHANGE: '; then
+    fail 'The breaking-change footer must be uppercase: "BREAKING CHANGE: <description>".'
+fi
+
+exit 0
