@@ -343,6 +343,23 @@ test: add authentication tests
 A message that doesn't match is rejected with an explanation, and the commit is aborted. The typed
 message is preserved — recover it with `git commit -e -F .git/COMMIT_EDITMSG`.
 
+### Formatting
+
+Python code is formatted with [black](https://black.readthedocs.io/) and
+[isort](https://pycqa.github.io/isort/). Settings live in `pyproject.toml` — line length 88 and
+isort `profile = "black"`, so the two tools agree on multi-line imports.
+
+```bash
+pip install black isort
+black <files>
+isort <files>
+```
+
+This is **enforced by a `pre-push` git hook** (`.githooks/pre-push`), activated by the same
+`git config core.hooksPath .githooks` as above. It checks only the `.py` files carried by the commits
+being pushed and rejects the push if any of them is unformatted, naming the files and the fix
+command. Bypass a single push with `git push --no-verify`.
+
 ---
 
 ## 🚧 Roadmap
