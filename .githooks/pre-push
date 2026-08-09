@@ -1,0 +1,183 @@
+#!/bin/sh
+#
+# pre-push hook: verifies that the Python files carried by this push are formatted
+# with black and isort (settings live in pyproject.toml).
+#
+# All files formatted -> exit 0, the push proceeds normally.
+# Any file unformatted -> exit 1, git aborts the push and this hook explains why.
+#
+# Only the .py files touched by the commits being pushed are checked, not the whole
+# repository, so pre-existing unformatted files never block an unrelated push.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+# Bypass for one push:    git push --no-verify
+
+set -u
+
+REMOTE="${1:-origin}"
+
+if [ -t 2 ]; then
+    RED=$(printf '\033[1;31m')
+    DIM=$(printf '\033[2m')
+    RESET=$(printf '\033[0m')
+else
+    RED=''
+    DIM=''
+    RESET=''
+fi
+
+TMPDIR_="${TMPDIR:-/tmp}"
+NAMES=$(mktemp "$TMPDIR_/pre-push-names.XXXXXX") || exit 1
+LIST=$(mktemp "$TMPDIR_/pre-push-list.XXXXXX") || exit 1
+trap 'rm -f "$NAMES" "$LIST"' EXIT
+
+# An all-zeros object id marks a created or deleted ref. Derive it from the repo's
+# own hash length so this works for both sha1 and sha256 repositories.
+ZERO=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
+
+# ---------------------------------------------------------------------------
+# Collect the files touched by the commits being pushed. git feeds us one
+# `<local ref> <local sha> <remote ref> <remote sha>` line per ref on stdin.
+# --diff-filter=ACMR keeps added/copied/modified/renamed paths and drops deletions.
+# ---------------------------------------------------------------------------
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+    [ -n "${local_sha:-}" ] || continue
+
+    # Ref deletion — nothing is being pushed.
+    [ "$local_sha" = "$ZERO" ] && continue
+
+    if [ "$remote_sha" = "$ZERO" ]; then
+        # New branch on the remote: everything not already reachable from it.
+        # --root makes a parentless commit diff against the empty tree, so the
+        # very first push of a repository is checked too.
+        for commit in $(git rev-list "$local_sha" --not --remotes="$REMOTE"); do
+            git diff-tree -r --root --no-commit-id --name-only --diff-filter=ACMR "$commit"
+        done
+    else
+        git diff --name-only --diff-filter=ACMR "$remote_sha" "$local_sha"
+    fi
+done >>"$NAMES"
+
+[ -s "$NAMES" ] || exit 0
+
+# Keep the .py files that still exist in the working tree — a file added and then
+# deleted across the pushed range would otherwise survive the per-commit pass.
+# NUL-separate the result so paths with spaces survive xargs.
+sort -u "$NAMES" | while IFS= read -r file; do
+    case "$file" in
+    *.py) ;;
+    *) continue ;;
+    esac
+    [ -f "$file" ] || continue
+    printf '%s\0' "$file"
+done >"$LIST"
+
+[ -s "$LIST" ] || exit 0
+
+COUNT=$(tr -cd '\0' <"$LIST" | wc -c | tr -d ' ')
+
+# ---------------------------------------------------------------------------
+# Resolve the tools: prefer the executables on PATH, fall back to `python3 -m`.
+# A formatting check that silently disables itself is worse than no check, so a
+# missing tool is a hard failure.
+# ---------------------------------------------------------------------------
+resolve_tool() {
+    if command -v "$1" >/dev/null 2>&1; then
+        printf '%s' "$1"
+    elif command -v python3 >/dev/null 2>&1 && python3 -c "import $1" >/dev/null 2>&1; then
+        printf 'python3 -m %s' "$1"
+    fi
+}
+
+BLACK=$(resolve_tool black)
+ISORT=$(resolve_tool isort)
+
+if [ -z "$BLACK" ] || [ -z "$ISORT" ]; then
+    missing=''
+    [ -z "$BLACK" ] && missing="black"
+    [ -z "$ISORT" ] && missing="${missing:+$missing and }isort"
+    printf '\n%s✖  Push rejected:%s %s not found, so the formatting check cannot run.\n\n' \
+        "$RED" "$RESET" "$missing" >&2
+    cat >&2 <<EOF
+   Activate the project environment, then install it:
+     pip install black isort
+
+   To push once without the check (use sparingly):
+     git push --no-verify
+
+EOF
+    exit 1
+fi
+
+printf '%sRunning black and isort on %s Python file(s) being pushed...%s\n' \
+    "$DIM" "$COUNT" "$RESET" >&2
+
+# The files are checked as they are on disk, which is what makes the reported
+# paths directly fixable — warn when that isn't what is actually being pushed.
+if ! xargs -0 git diff --quiet HEAD -- <"$LIST" 2>/dev/null; then
+    printf '%s(working tree differs from HEAD — checking the files as they are on disk)%s\n' \
+        "$DIM" "$RESET" >&2
+fi
+
+ROOT=$(git rev-parse --show-toplevel)
+
+# Both tools always run, so a single push reports every problem at once.
+BLACK_OUT=$(xargs -0 $BLACK --check <"$LIST" 2>&1)
+BLACK_RC=$?
+ISORT_OUT=$(xargs -0 $ISORT --check-only <"$LIST" 2>&1)
+ISORT_RC=$?
+
+[ "$BLACK_RC" -eq 0 ] && [ "$ISORT_RC" -eq 0 ] && exit 0
+
+# Pull the offending paths out of each tool's report. isort prints absolute paths,
+# so trim the repo root to keep everything relative and copy-pasteable.
+BLACK_FILES=''
+ISORT_FILES=''
+[ "$BLACK_RC" -ne 0 ] && BLACK_FILES=$(printf '%s\n' "$BLACK_OUT" | sed -n 's/^would reformat //p')
+[ "$ISORT_RC" -ne 0 ] && ISORT_FILES=$(printf '%s\n' "$ISORT_OUT" |
+    sed -n 's/^ERROR: \(.*\) Imports are incorrectly sorted.*/\1/p' |
+    sed "s|^$ROOT/||")
+
+# Fall back to the raw report if either output format ever changes underneath us.
+report() {
+    if [ -n "$2" ]; then
+        printf '%s\n' "$2" | sed 's/^/       /' >&2
+    else
+        printf '%s\n' "$1" | sed 's/^/       /' >&2
+    fi
+}
+
+printf '\n%s✖  Push rejected:%s some Python files are not formatted.\n\n' "$RED" "$RESET" >&2
+
+if [ "$BLACK_RC" -ne 0 ]; then
+    printf '   black:\n' >&2
+    report "$BLACK_OUT" "$BLACK_FILES"
+fi
+
+if [ "$ISORT_RC" -ne 0 ]; then
+    printf '   isort:\n' >&2
+    report "$ISORT_OUT" "$ISORT_FILES"
+fi
+
+# Suggest the fix for the files that actually failed, not every file checked.
+FILES=$(printf '%s\n%s\n' "$BLACK_FILES" "$ISORT_FILES" | sed '/^[[:space:]]*$/d' | sort -u |
+    tr '\n' ' ' | sed 's/ *$//')
+[ -n "$FILES" ] || FILES=$(xargs -0 echo <"$LIST")
+
+cat >&2 <<EOF
+
+   Fix with:
+     black $FILES
+     isort $FILES
+
+   Then amend or add a new commit and push again.
+
+   Settings come from pyproject.toml (line length 88, isort profile "black"),
+   so these match the PyCharm External Tools and this hook exactly.
+
+   To push once without the check (use sparingly):
+     git push --no-verify
+
+EOF
+
+exit 1
