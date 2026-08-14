@@ -1,0 +1,175 @@
+name: Formatting
+
+# Server-side backstop for the .githooks/pre-push hook, which is local and therefore
+# bypassable (git push --no-verify, a clone that never ran
+# `git config core.hooksPath .githooks`, or a commit made on github.com).
+#
+# Like the hook, this checks only the .py files changed by the push or PR — the
+# codebase is not fully formatted yet, so a repo-wide check would be red on every run.
+# Settings come from pyproject.toml, so CI, the hook and the IDE tools all agree.
+
+on:
+  push:
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: format-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: black + isort
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # Full history: the base commit must be present to diff against.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install formatters
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Resolve the Python files to check
+        id: files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            HEAD="$PR_HEAD_SHA"
+            BASE=$(git merge-base "$PR_BASE_SHA" "$HEAD")
+          else
+            HEAD="$PUSH_SHA"
+            BASE=""
+            if [ -n "${PUSH_BEFORE:-}" ] && git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+              BASE="$PUSH_BEFORE"
+            else
+              # First push of a new branch: `before` is all zeros. Fall back to where
+              # the branch left the integration branch. develop is tried first — main
+              # trails it by a long way, so a merge-base there would drag in most of
+              # the repository.
+              for ref in origin/develop origin/main; do
+                if git rev-parse -q --verify "$ref" >/dev/null; then
+                  BASE=$(git merge-base "$ref" "$HEAD" 2>/dev/null || true)
+                  if [ -n "$BASE" ]; then break; fi
+                fi
+              done
+            fi
+          fi
+
+          # --diff-filter=ACMR keeps added/copied/modified/renamed paths, drops deletions.
+          if [ -n "$BASE" ]; then
+            echo "Comparing $BASE..$HEAD"
+            git diff --name-only --diff-filter=ACMR "$BASE" "$HEAD" -- '*.py' > "$RUNNER_TEMP/all.txt"
+          else
+            echo "No base commit resolved — checking the tip commit only"
+            git diff-tree -r --root --no-commit-id --name-only --diff-filter=ACMR "$HEAD" -- '*.py' \
+              > "$RUNNER_TEMP/all.txt"
+          fi
+
+          # Keep only paths that still exist: a file added and then deleted across the
+          # range would otherwise survive.
+          sort -u "$RUNNER_TEMP/all.txt" > "$RUNNER_TEMP/sorted.txt"
+          : > "$RUNNER_TEMP/files.txt"
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then printf '%s\n' "$file" >> "$RUNNER_TEMP/files.txt"; fi
+          done < "$RUNNER_TEMP/sorted.txt"
+
+          COUNT=$(wc -l < "$RUNNER_TEMP/files.txt" | tr -d ' ')
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No Python files changed — nothing to check."
+          else
+            echo "Checking $COUNT Python file(s):"
+            sed 's/^/  /' "$RUNNER_TEMP/files.txt"
+          fi
+
+      - name: Check black and isort
+        if: steps.files.outputs.count != '0'
+        run: |
+          # The default shell is `bash -e`: without +e the step would abort on the
+          # first failing tool and never report the second one.
+          set +e
+          set -uo pipefail
+
+          LIST="$RUNNER_TEMP/files.txt"
+
+          # Both tools always run, so one job reports every problem at once.
+          # --diff writes to stdout (straight into the log); the file names land on
+          # stderr, which is what gets parsed below.
+          # NUL-separated so paths with spaces survive, exactly as the hook does.
+          echo "::group::black --check --diff"
+          tr '\n' '\0' < "$LIST" | xargs -0 black --check --diff 2> "$RUNNER_TEMP/black.err"
+          BLACK_RC=$?
+          cat "$RUNNER_TEMP/black.err"
+          echo "::endgroup::"
+
+          echo "::group::isort --check-only --diff"
+          tr '\n' '\0' < "$LIST" | xargs -0 isort --check-only --diff 2> "$RUNNER_TEMP/isort.err"
+          ISORT_RC=$?
+          cat "$RUNNER_TEMP/isort.err"
+          echo "::endgroup::"
+
+          if [ "$BLACK_RC" -eq 0 ] && [ "$ISORT_RC" -eq 0 ]; then
+            echo "All checked files are formatted."
+            exit 0
+          fi
+
+          BLACK_FILES=$(sed -n 's/^would reformat //p' "$RUNNER_TEMP/black.err" || true)
+          # isort reports absolute paths — make them repo-relative.
+          ISORT_FILES=$(sed -n 's/^ERROR: \(.*\) Imports are incorrectly sorted.*/\1/p' \
+            "$RUNNER_TEMP/isort.err" | sed "s|^$GITHUB_WORKSPACE/||" || true)
+
+          FAILED=$(printf '%s\n%s\n' "$BLACK_FILES" "$ISORT_FILES" |
+            sed '/^[[:space:]]*$/d' | sort -u)
+          # A tool can fail for another reason (a syntax error, say), in which case
+          # nothing parses out — fall back to everything that was checked.
+          if [ -z "$FAILED" ]; then FAILED=$(cat "$LIST"); fi
+
+          # Annotate the files inline on the PR's "Files changed" tab.
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            echo "::error file=${file}::Not formatted — run: black ${file} && isort ${file}"
+          done <<< "$FAILED"
+
+          FIX=$(printf '%s' "$FAILED" | tr '\n' ' ' | sed 's/ *$//')
+
+          {
+            echo "### ✖ Formatting check failed"
+            echo
+            echo "These files are not formatted, which means the \`pre-push\` hook was bypassed"
+            echo "or was never enabled in the clone they were pushed from:"
+            echo
+            printf '%s\n' "$FAILED" | sed 's/^/- `/; s/$/`/'
+            echo
+            echo "Fix them locally:"
+            echo
+            echo '```bash'
+            echo "git config core.hooksPath .githooks   # enable the hooks (once per clone)"
+            echo "pip install -r requirements-dev.txt"
+            echo "black $FIX"
+            echo "isort $FIX"
+            echo '```'
+            echo
+            echo "Settings come from \`pyproject.toml\` — line length 88, isort \`profile = \"black\"\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit 1

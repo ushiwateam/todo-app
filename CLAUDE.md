@@ -22,7 +22,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Single test: `pytest tests/unit/application/services/test_todos.py::test_add_todo`
 - Tests never touch the real Postgres DB — `tests/conftest.py` overrides the `get_db` dependency with an in-memory SQLite session (`StaticPool`, wrapped in a rollback-per-test transaction).
 - Ignore `tests/Makefile` — it references a `features/...` test layout that no longer exists after the layered-architecture refactor.
-- CI: `.github/workflows/pytest.yml` runs `pytest` on push and on PRs into `main`.
+- CI: `.github/workflows/pytest.yml` runs `pytest` on push and on PRs into `main` or `develop`.
+
+### CI workflows
+- `.github/workflows/pytest.yml` — `pytest` on every push and on PRs into `main`/`develop`.
+- `.github/workflows/format.yml` ("Formatting") — the server-side backstop for the `pre-push` hook, which is local and bypassable (`--no-verify`, or any clone that never ran `git config core.hooksPath .githooks`). It resolves the changed `.py` files (PR → `merge-base(base, head)`; push → `github.event.before`, falling back to `merge-base` with `origin/develop` then `origin/main` when `before` is all zeros on a new branch), then runs `black --check --diff` and `isort --check-only --diff` over exactly that set. Both tools always run; failures become `::error file=` annotations plus a `$GITHUB_STEP_SUMMARY` with the fix. **Note the fallback order matters** — `main` is stale (`c86ff2f`), so a merge-base against it would drag in most of the repo; `origin/develop` is the real trunk.
+- The formatting job scopes itself to changed files for the same reason the hook does (see the note below about the repo not being clean). Zero changed `.py` files → the job passes without running the tools.
+- Formatter versions are pinned in `requirements-dev.txt` (`black==26.5.1`, `isort==8.0.1`), deliberately separate from `requirements.txt` because the `Dockerfile` installs that one into the runtime image. Bump both together with the local env, or CI and developers will disagree about what "formatted" means.
+- A red check does not block a merge on its own — **Formatting** must be added as a required status check in branch protection for `main`/`develop` for it to actually gate merges.
 
 ### Git hooks
 - `.githooks/commit-msg` enforces [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) on every commit (POSIX sh, no dependencies). Allowed types: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert` — note `feature:`, used in older commits, is **not** accepted.

@@ -72,3 +72,8 @@ Two details worth knowing:
 - Branch deletions, pushes carrying no `.py` files, and pushes with nothing new are all silent no-ops.
 
 To bypass the hook for a single push (use sparingly): `git push --no-verify`.
+
+Bypassing only defers the failure. The **Formatting** workflow (`.github/workflows/format.yml`) runs
+the same two checks on the same file set for every push and every PR into `main`/`develop`, so a
+skipped hook — or a clone that never ran the `core.hooksPath` command — turns into a red check
+instead of unformatted code on the branch.
