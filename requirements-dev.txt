@@ -1,0 +1,6 @@
+# Development-only tooling. Pinned so CI, the pre-push hook and the PyCharm
+# External Tools all agree on what "formatted" means.
+# Kept out of requirements.txt on purpose: the Dockerfile installs that file
+# into the runtime image, where formatters have no business.
+black==26.5.1
+isort==8.0.1

@@ -350,7 +350,7 @@ Python code is formatted with [black](https://black.readthedocs.io/) and
 isort `profile = "black"`, so the two tools agree on multi-line imports.
 
 ```bash
-pip install black isort
+pip install -r requirements-dev.txt   # pinned black + isort
 black <files>
 isort <files>
 ```
@@ -359,6 +359,12 @@ This is **enforced by a `pre-push` git hook** (`.githooks/pre-push`), activated 
 `git config core.hooksPath .githooks` as above. It checks only the `.py` files carried by the commits
 being pushed and rejects the push if any of them is unformatted, naming the files and the fix
 command. Bypass a single push with `git push --no-verify`.
+
+The hook is local, so it can be skipped — a `--no-verify` push, or a clone that never ran the
+`core.hooksPath` command. The **Formatting** GitHub Actions workflow
+(`.github/workflows/format.yml`) is the backstop: it re-runs the same two checks on the same file
+set for every push and every PR into `main`/`develop`, annotates the offending lines in the diff and
+prints the fix in the run summary. Bypassing the hook only defers the failure to CI.
 
 ---
 
