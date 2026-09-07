@@ -1,13 +1,22 @@
 #!/bin/sh
 #
-# pre-push hook: verifies that the Python files carried by this push are formatted
-# with black and isort (settings live in pyproject.toml).
+# pre-push hook: two checks run before a push is sent.
 #
-# All files formatted -> exit 0, the push proceeds normally.
-# Any file unformatted -> exit 1, git aborts the push and this hook explains why.
+#   1. formatting — the Python files carried by this push are checked with black
+#                   and isort (settings live in pyproject.toml).
+#   2. tests      — the pytest suite runs, in full.
 #
-# Only the .py files touched by the commits being pushed are checked, not the whole
-# repository, so pre-existing unformatted files never block an unrelated push.
+# Both stages pass  -> exit 0, the push proceeds normally.
+# Either one fails  -> exit 1, git aborts the push and this hook explains why.
+#
+# Both stages always run, so a single push reports everything that is wrong at once.
+#
+# Only the .py files touched by the commits being pushed are format-checked, not the
+# whole repository, so pre-existing unformatted files never block an unrelated push.
+# The test suite is deliberately not scoped that way: a change in one file can break
+# a test anywhere, and the suite takes about three seconds.
+#
+# Both stages look at the working tree, not at the commits being pushed.
 #
 # Enable once per clone:  git config core.hooksPath .githooks
 # Bypass for one push:    git push --no-verify
@@ -26,6 +35,8 @@ else
     RESET=''
 fi
 
+ROOT=$(git rev-parse --show-toplevel)
+
 TMPDIR_="${TMPDIR:-/tmp}"
 NAMES=$(mktemp "$TMPDIR_/pre-push-names.XXXXXX") || exit 1
 LIST=$(mktemp "$TMPDIR_/pre-push-list.XXXXXX") || exit 1
@@ -36,15 +47,55 @@ trap 'rm -f "$NAMES" "$LIST"' EXIT
 ZERO=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
 
 # ---------------------------------------------------------------------------
+# Shared helpers.
+# ---------------------------------------------------------------------------
+
+# Resolve a tool: prefer the executable on PATH, fall back to `python3 -m`.
+# A check that silently disables itself is worse than no check, so every caller
+# treats an unresolved tool as a hard failure.
+resolve_tool() {
+    if command -v "$1" >/dev/null 2>&1; then
+        printf '%s' "$1"
+    elif command -v python3 >/dev/null 2>&1 && python3 -c "import $1" >/dev/null 2>&1; then
+        printf 'python3 -m %s' "$1"
+    fi
+}
+
+# Stage headline: `✖  <stage>: <what went wrong>`. The single "push rejected"
+# verdict is printed once at the end, after every stage has had its say.
+stage_error() {
+    printf '\n%s✖  %s:%s %s\n\n' "$RED" "$1" "$RESET" "$2" >&2
+}
+
+# Print the parsed list of offending files, falling back to a tool's raw report
+# if its output format ever changes underneath us.
+report() {
+    if [ -n "$2" ]; then
+        printf '%s\n' "$2" | sed 's/^/       /' >&2
+    else
+        printf '%s\n' "$1" | sed 's/^/       /' >&2
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Collect the files touched by the commits being pushed. git feeds us one
 # `<local ref> <local sha> <remote ref> <remote sha>` line per ref on stdin.
 # --diff-filter=ACMR keeps added/copied/modified/renamed paths and drops deletions.
+#
+# HAS_REFS records whether anything is actually being pushed: a push that only
+# deletes a branch must not run the test suite either. The loop reads git's stdin
+# directly rather than through a pipeline, so it is not a subshell and the flag
+# survives it.
 # ---------------------------------------------------------------------------
+HAS_REFS=0
+
 while read -r _local_ref local_sha _remote_ref remote_sha; do
     [ -n "${local_sha:-}" ] || continue
 
     # Ref deletion — nothing is being pushed.
     [ "$local_sha" = "$ZERO" ] && continue
+
+    HAS_REFS=1
 
     if [ "$remote_sha" = "$ZERO" ]; then
         # New branch on the remote: everything not already reachable from it.
@@ -58,113 +109,91 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
     fi
 done >>"$NAMES"
 
-[ -s "$NAMES" ] || exit 0
-
-# Keep the .py files that still exist in the working tree — a file added and then
-# deleted across the pushed range would otherwise survive the per-commit pass.
-# NUL-separate the result so paths with spaces survive xargs.
-sort -u "$NAMES" | while IFS= read -r file; do
-    case "$file" in
-    *.py) ;;
-    *) continue ;;
-    esac
-    [ -f "$file" ] || continue
-    printf '%s\0' "$file"
-done >"$LIST"
-
-[ -s "$LIST" ] || exit 0
-
-COUNT=$(tr -cd '\0' <"$LIST" | wc -c | tr -d ' ')
+[ "$HAS_REFS" -eq 1 ] || exit 0
 
 # ---------------------------------------------------------------------------
-# Resolve the tools: prefer the executables on PATH, fall back to `python3 -m`.
-# A formatting check that silently disables itself is worse than no check, so a
-# missing tool is a hard failure.
+# Stage 1 — formatting, over the .py files this push carries.
 # ---------------------------------------------------------------------------
-resolve_tool() {
-    if command -v "$1" >/dev/null 2>&1; then
-        printf '%s' "$1"
-    elif command -v python3 >/dev/null 2>&1 && python3 -c "import $1" >/dev/null 2>&1; then
-        printf 'python3 -m %s' "$1"
-    fi
-}
+format_stage() {
+    [ -s "$NAMES" ] || return 0
 
-BLACK=$(resolve_tool black)
-ISORT=$(resolve_tool isort)
+    # Keep the .py files that still exist in the working tree — a file added and
+    # then deleted across the pushed range would otherwise survive the per-commit
+    # pass. NUL-separate the result so paths with spaces survive xargs.
+    sort -u "$NAMES" | while IFS= read -r file; do
+        case "$file" in
+        *.py) ;;
+        *) continue ;;
+        esac
+        [ -f "$file" ] || continue
+        printf '%s\0' "$file"
+    done >"$LIST"
 
-if [ -z "$BLACK" ] || [ -z "$ISORT" ]; then
-    missing=''
-    [ -z "$BLACK" ] && missing="black"
-    [ -z "$ISORT" ] && missing="${missing:+$missing and }isort"
-    printf '\n%s✖  Push rejected:%s %s not found, so the formatting check cannot run.\n\n' \
-        "$RED" "$RESET" "$missing" >&2
-    cat >&2 <<EOF
+    [ -s "$LIST" ] || return 0
+
+    COUNT=$(tr -cd '\0' <"$LIST" | wc -c | tr -d ' ')
+
+    BLACK=$(resolve_tool black)
+    ISORT=$(resolve_tool isort)
+
+    if [ -z "$BLACK" ] || [ -z "$ISORT" ]; then
+        missing=''
+        [ -z "$BLACK" ] && missing="black"
+        [ -z "$ISORT" ] && missing="${missing:+$missing and }isort"
+        stage_error 'Formatting' "$missing not found, so the formatting check cannot run."
+        cat >&2 <<EOF
    Activate the project environment, then install it:
      pip install black isort
 
-   To push once without the check (use sparingly):
-     git push --no-verify
-
 EOF
-    exit 1
-fi
-
-printf '%sRunning black and isort on %s Python file(s) being pushed...%s\n' \
-    "$DIM" "$COUNT" "$RESET" >&2
-
-# The files are checked as they are on disk, which is what makes the reported
-# paths directly fixable — warn when that isn't what is actually being pushed.
-if ! xargs -0 git diff --quiet HEAD -- <"$LIST" 2>/dev/null; then
-    printf '%s(working tree differs from HEAD — checking the files as they are on disk)%s\n' \
-        "$DIM" "$RESET" >&2
-fi
-
-ROOT=$(git rev-parse --show-toplevel)
-
-# Both tools always run, so a single push reports every problem at once.
-BLACK_OUT=$(xargs -0 $BLACK --check <"$LIST" 2>&1)
-BLACK_RC=$?
-ISORT_OUT=$(xargs -0 $ISORT --check-only <"$LIST" 2>&1)
-ISORT_RC=$?
-
-[ "$BLACK_RC" -eq 0 ] && [ "$ISORT_RC" -eq 0 ] && exit 0
-
-# Pull the offending paths out of each tool's report. isort prints absolute paths,
-# so trim the repo root to keep everything relative and copy-pasteable.
-BLACK_FILES=''
-ISORT_FILES=''
-[ "$BLACK_RC" -ne 0 ] && BLACK_FILES=$(printf '%s\n' "$BLACK_OUT" | sed -n 's/^would reformat //p')
-[ "$ISORT_RC" -ne 0 ] && ISORT_FILES=$(printf '%s\n' "$ISORT_OUT" |
-    sed -n 's/^ERROR: \(.*\) Imports are incorrectly sorted.*/\1/p' |
-    sed "s|^$ROOT/||")
-
-# Fall back to the raw report if either output format ever changes underneath us.
-report() {
-    if [ -n "$2" ]; then
-        printf '%s\n' "$2" | sed 's/^/       /' >&2
-    else
-        printf '%s\n' "$1" | sed 's/^/       /' >&2
+        return 1
     fi
-}
 
-printf '\n%s✖  Push rejected:%s some Python files are not formatted.\n\n' "$RED" "$RESET" >&2
+    printf '%sRunning black and isort on %s Python file(s) being pushed...%s\n' \
+        "$DIM" "$COUNT" "$RESET" >&2
 
-if [ "$BLACK_RC" -ne 0 ]; then
-    printf '   black:\n' >&2
-    report "$BLACK_OUT" "$BLACK_FILES"
-fi
+    # The files are checked as they are on disk, which is what makes the reported
+    # paths directly fixable — warn when that isn't what is actually being pushed.
+    if ! xargs -0 git diff --quiet HEAD -- <"$LIST" 2>/dev/null; then
+        printf '%s(working tree differs from HEAD — both stages see the files as they are on disk)%s\n' \
+            "$DIM" "$RESET" >&2
+    fi
 
-if [ "$ISORT_RC" -ne 0 ]; then
-    printf '   isort:\n' >&2
-    report "$ISORT_OUT" "$ISORT_FILES"
-fi
+    # Both tools always run, so a single push reports every problem at once.
+    BLACK_OUT=$(xargs -0 $BLACK --check <"$LIST" 2>&1)
+    BLACK_RC=$?
+    ISORT_OUT=$(xargs -0 $ISORT --check-only <"$LIST" 2>&1)
+    ISORT_RC=$?
 
-# Suggest the fix for the files that actually failed, not every file checked.
-FILES=$(printf '%s\n%s\n' "$BLACK_FILES" "$ISORT_FILES" | sed '/^[[:space:]]*$/d' | sort -u |
-    tr '\n' ' ' | sed 's/ *$//')
-[ -n "$FILES" ] || FILES=$(xargs -0 echo <"$LIST")
+    [ "$BLACK_RC" -eq 0 ] && [ "$ISORT_RC" -eq 0 ] && return 0
 
-cat >&2 <<EOF
+    # Pull the offending paths out of each tool's report. isort prints absolute
+    # paths, so trim the repo root to keep everything relative and copy-pasteable.
+    BLACK_FILES=''
+    ISORT_FILES=''
+    [ "$BLACK_RC" -ne 0 ] && BLACK_FILES=$(printf '%s\n' "$BLACK_OUT" | sed -n 's/^would reformat //p')
+    [ "$ISORT_RC" -ne 0 ] && ISORT_FILES=$(printf '%s\n' "$ISORT_OUT" |
+        sed -n 's/^ERROR: \(.*\) Imports are incorrectly sorted.*/\1/p' |
+        sed "s|^$ROOT/||")
+
+    stage_error 'Formatting' 'some Python files are not formatted.'
+
+    if [ "$BLACK_RC" -ne 0 ]; then
+        printf '   black:\n' >&2
+        report "$BLACK_OUT" "$BLACK_FILES"
+    fi
+
+    if [ "$ISORT_RC" -ne 0 ]; then
+        printf '   isort:\n' >&2
+        report "$ISORT_OUT" "$ISORT_FILES"
+    fi
+
+    # Suggest the fix for the files that actually failed, not every file checked.
+    FILES=$(printf '%s\n%s\n' "$BLACK_FILES" "$ISORT_FILES" | sed '/^[[:space:]]*$/d' | sort -u |
+        tr '\n' ' ' | sed 's/ *$//')
+    [ -n "$FILES" ] || FILES=$(xargs -0 echo <"$LIST")
+
+    cat >&2 <<EOF
 
    Fix with:
      black $FILES
@@ -175,7 +204,84 @@ cat >&2 <<EOF
    Settings come from pyproject.toml (line length 88, isort profile "black"),
    so these match the PyCharm External Tools and this hook exactly.
 
-   To push once without the check (use sparingly):
+EOF
+
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# Stage 2 — the test suite, in full.
+# ---------------------------------------------------------------------------
+tests_stage() {
+    PYTEST=$(resolve_tool pytest)
+
+    if [ -z "$PYTEST" ]; then
+        stage_error 'Tests' 'pytest not found, so the test suite cannot run.'
+        cat >&2 <<EOF
+   Activate the project environment, then install it:
+     pip install -r requirements.txt
+
+EOF
+        return 1
+    fi
+
+    printf '%sRunning the test suite...%s\n' "$DIM" "$RESET" >&2
+
+    # Streamed rather than captured: pytest's own failure report is exactly what
+    # needs reading, and buffering it would only delay it. stdout is redirected to
+    # stderr so all hook output stays on one stream. Discovery is plain and rooted
+    # at tests/, so the suite must be run from the repository root.
+    (cd "$ROOT" && $PYTEST -q) >&2
+    PYTEST_RC=$?
+
+    [ "$PYTEST_RC" -eq 0 ] && return 0
+
+    stage_error 'Tests' 'the suite failed.'
+    cat >&2 <<EOF
+   Re-run it with:
+     pytest -q
+
+EOF
+
+    # app/config.py reads POSTGRES_* and TOKEN_SECRET_KEY through load_dotenv(). A
+    # clone without a .env fails wholesale, which looks like a regression but isn't.
+    if [ ! -f "$ROOT/.env" ]; then
+        cat >&2 <<EOF
+   No .env in the repository root — the suite reads POSTGRES_* and
+   TOKEN_SECRET_KEY from it. If the failures are environment-related:
+     cp .env.example .env
+
+EOF
+    fi
+
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# Run both stages, then give the verdict once.
+# ---------------------------------------------------------------------------
+format_stage
+FORMAT_RC=$?
+
+tests_stage
+TESTS_RC=$?
+
+[ "$FORMAT_RC" -eq 0 ] && [ "$TESTS_RC" -eq 0 ] && exit 0
+
+if [ "$FORMAT_RC" -ne 0 ] && [ "$TESTS_RC" -ne 0 ]; then
+    SUMMARY='the formatting and test stages failed'
+elif [ "$FORMAT_RC" -ne 0 ]; then
+    SUMMARY='the formatting stage failed'
+else
+    SUMMARY='the test stage failed'
+fi
+
+printf '%s✖  Push rejected:%s %s. Nothing was sent to %s.\n' \
+    "$RED" "$RESET" "$SUMMARY" "$REMOTE" >&2
+
+cat >&2 <<EOF
+
+   To push once without these checks (use sparingly):
      git push --no-verify
 
 EOF
