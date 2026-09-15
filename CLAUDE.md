@@ -51,20 +51,26 @@ This is a **feature-based (vertical slice) architecture**, refactored from the e
 ```
 app/
 ├── auth/                   # slice: users, registration, login, JWT
+│   ├── security.py         bcrypt hashing + JWT encode/decode (auth-private)
 │   ├── business/           entity.py  interface.py  service.py  exceptions.py
 │   ├── data_access/        interface.py  repository.py  mapper.py  model.py
-│   └── presentation/       router.py  schemas.py
+│   └── presentation/       router.py  schemas.py  responses.py
 ├── todos/                  # slice: todo CRUD — same three layers, same file names
 │   ├── business/           entity.py  interface.py  service.py  exceptions.py
 │   ├── data_access/        interface.py  repository.py  mapper.py  model.py
-│   └── presentation/       router.py  schema.py
-├── shared/                 # what both slices are built on
+│   └── presentation/       router.py  schema.py  responses.py
+├── shared/                 # what both slices are built on — organised by concern, never by layer
 │   ├── database/           base.py (DeclarativeBase)  session.py (engine/SessionLocal)
-│   ├── data_access/        base_repository.py (ISqlAlchemyRepository)
-│   └── presentation/       error_responses.py  errors_schemas.py
+│   │                       repository.py (ISqlAlchemyRepository)
+│   └── errors/             exceptions.py (AppError/BusinessError)
+│                           responses.py (ErrorResponse + UNAUTHORIZED_RESPONSE)
 ├── dependencies.py         # composition root — the only cross-everything module
-├── config.py  security.py  exceptions.py  main.py
+├── config.py  main.py
 ```
+
+`shared/` holds only what survives deleting a feature. Anything that failed that test now lives in
+the slice that owns it: `app/auth/security.py` (only `AuthService` mints tokens) and the
+feature-specific OpenAPI dicts in each slice's `presentation/responses.py`.
 
 Within a slice the dependency direction is the same as before — `presentation → business → data_access`, each layer reaching the one below only through interfaces, never concrete implementations:
 
@@ -80,28 +86,30 @@ Within a slice the dependency direction is the same as before — `presentation 
   - `entity.py` — a plain `@dataclass(slots=True)` domain object (`Todo`, `User`), independent of both the SQLAlchemy model and the Pydantic schemas.
   - `interface.py` — the abstract service base class (`ITodoService`, `IAuthService`); routers depend on these via FastAPI `Depends`, not on the concrete class.
   - `service.py` — business logic (`TodoService`, `AuthService`), constructed per-request with its repository (and, for `TodoService`, the current authenticated user) injected — see `app/dependencies.py`.
-  - `exceptions.py` — domain errors (`TodoNotFoundError`, `UnauthorizedAccessError`, `EmailAlreadyRegisteredError`, `InvalidCredentialsError`), all subclassing `BusinessError` in `app/exceptions.py`.
+  - `exceptions.py` — domain errors (`TodoNotFoundError`, `UnauthorizedAccessError`, `EmailAlreadyRegisteredError`, `InvalidCredentialsError`), all subclassing `BusinessError` in `app/shared/errors/exceptions.py`.
 
 - **`<feature>/data_access/`** — the persistence layer.
   - `model.py` — the SQLAlchemy ORM model, separate from the business entity.
   - `interface.py` — the repository contract (`ITodoRepository`, `IUserRepository`).
   - `mapper.py` — pure `to_entity` / `to_model` functions, so services never see ORM objects.
-  - `repository.py` — the concrete repository, subclassing `ISqlAlchemyRepository` from `app/shared/data_access/base_repository.py` and supplying `to_model`/`to_entity`.
+  - `repository.py` — the concrete repository, subclassing `ISqlAlchemyRepository` from `app/shared/database/repository.py` and supplying `to_model`/`to_entity`.
 
 - **`<feature>/presentation/`** — the HTTP layer.
   - `router.py` — FastAPI handlers (`auth`: `/register`, `/login`, `/token`; `todos`: CRUD under `/todos`). Handlers call a service obtained via `Depends`, then translate business exceptions into `HTTPException`s (`TodoNotFoundError` → 404, `UnauthorizedAccessError` → 403).
   - `schemas.py` / `schema.py` — Pydantic request/response models, distinct from both entities and ORM models. (The two slices spell this one differently; `todos` uses the singular.)
+  - `responses.py` — the slice's own OpenAPI `responses={}` dicts, i.e. the ones whose wording only makes sense for this feature (`NOT_FOUND_RESPONSE` says "Todo not found"; `EMAIL_ALREADY_REGISTERED_RESPONSE` is auth's). Only the feature-neutral `UNAUTHORIZED_RESPONSE` stayed in `app/shared/errors/responses.py`.
 
-- **`app/shared/`** — what both slices sit on: `ISqlAlchemyRepository[TEntity, TModel]` with its CRUD helpers (`_create`, `_get_one_or_none`, `get_all`, `_update`, `_delete`), the declarative `Base`, the engine/`SessionLocal` built from `POSTGRES_*` env vars, and the shared OpenAPI `responses={}` dicts (`NOT_FOUND_RESPONSE`, `FORBIDDEN_RESPONSE`, …) attached to router decorators. **`shared` never imports a feature** — the dependency only ever points feature → shared.
+- **`app/shared/`** — what both slices sit on, split by technical concern rather than by layer. `shared/database/` holds the declarative `Base`, the engine/`SessionLocal` built from `POSTGRES_*` env vars, and `ISqlAlchemyRepository[TEntity, TModel]` with its CRUD helpers (`_create`, `_get_one_or_none`, `get_all`, `_update`, `_delete`). `shared/errors/` holds the `AppError`/`BusinessError` hierarchy plus the `ErrorResponse` schema and the one feature-neutral OpenAPI dict (`UNAUTHORIZED_RESPONSE`). **`shared` never imports a feature** — the dependency only ever points feature → shared.
+  - `base.py` and `session.py` stay separate so importing `Base` (alembic, `tests/conftest.py`) does not construct a Postgres engine as a side effect.
 
-- **Cross-feature rules.** `auth` is the lower slice and must not know `todos` exists at all. `todos` may import `app.auth.business.entity` (it owns a `user_id` and `ITodoService` is typed against the `User` entity) but nothing else of auth's — not its service, repository, mapper, ORM model, router or schemas. A slice's public surface is its business entity and its interfaces; everything else is private to it. Both rules are enforced by `tests/architecture/test_layer_boundaries.py`.
-  - The one deliberate exception is `app/security.py`, which imports `app.auth.data_access.model.User` purely as a type hint for `prepare_token_data`. It's shared code reaching into a feature — acceptable while auth is the only thing that mints tokens, worth revisiting if a second slice needs them.
+- **Cross-feature rules.** `auth` is the lower slice and must not know `todos` exists at all. `todos` may import `app.auth.business.entity` (it owns a `user_id` and `ITodoService` is typed against the `User` entity) but nothing else of auth's — not its service, repository, mapper, ORM model, router, schemas or `security.py`. A slice's public surface is its business entity and its interfaces; everything else is private to it. Both rules are enforced by `tests/architecture/test_layer_boundaries.py`.
+  - The deliberate exception documented in earlier revisions of this file is **gone**. `app/security.py` used to sit at the root and import `app.auth.data_access.model.User` as a type hint for `prepare_token_data`, while every call site actually passed the business entity. It now lives at `app/auth/security.py` and hints `app.auth.business.entity.User`, so no shared module reaches into a feature.
 
 - **Dependency wiring** (`app/dependencies.py`) is the composition root: `get_db`, `get_current_user`, and the factory functions (`get_todo_repository`, `get_todo_service`, …) exposed as `Annotated[...]` `*Dep` aliases (`TodoServiceDep`, `AuthServiceDep`, `CurrentUserDep`, …) that routers depend on. This is the one place that wires interfaces to concrete implementations, and the one module that legitimately imports across every slice and layer — start here when tracing how a request reaches a service. The `get_current_user` leaks documented in earlier revisions of this file are **fixed**: it now delegates to `AuthServiceDep` (`AuthService.get_current_user` decodes the JWT and loads the user through `IUserRepository.get_user_by_id`), so it neither touches a raw `Session` nor returns an unmapped ORM row. `tests/unit/test_dependencies.py` keeps the raw-session assertion as a regression guard, and it passes.
 
-- **Error model** (`app/exceptions.py`): all domain errors derive from `AppError`, split into `PresentationError` / `DataAccessError` / `BusinessError` base classes. Routers only catch specific `BusinessError` subclasses per-endpoint (no global exception handler yet).
+- **Error model** (`app/shared/errors/exceptions.py`): all domain errors derive from `AppError`, with `BusinessError` as the single intermediate base. (`PresentationError` and `DataAccessError` were removed — nothing subclassed or raised them, and they carried the layer vocabulary the refactor retired.) Routers only catch specific `BusinessError` subclasses per-endpoint (no global exception handler yet).
 
-- **Auth** (`app/security.py`): bcrypt password hashing via `passlib`, JWT creation via `python-jose`. `AuthService.authenticate_user` runs `pwd_context.verify` against a `DUMMY_HASH` even when the user doesn't exist, to keep login timing constant regardless of whether the email exists.
+- **Auth** (`app/auth/security.py`, private to the slice — the architecture tests treat `app.<feature>.security*` as feature-internal): bcrypt password hashing via `passlib`, JWT creation via `python-jose`. `AuthService.authenticate_user` runs `pwd_context.verify` against a `DUMMY_HASH` even when the user doesn't exist, to keep login timing constant regardless of whether the email exists.
 
 - **Architecture tests** (`tests/architecture/test_layer_boundaries.py`) use `pytest-archon` to enforce all of the above at the import level: the two cross-feature rules, `shared` not importing features, and the per-slice layering (presentation ↛ data_access, business ↛ presentation, business ↛ ORM/repository/mapper, data_access ↛ presentation or business services/interfaces). Patterns are written as `app.*.presentation*` / `app.*.business*` / `app.*.data_access*` so they cover both slices. They check direct imports only (`only_direct_imports=True`) — `app/dependencies.py` intentionally imports across every boundary to wire things up, so transitive checking would flag any router that imports it. A separate rule (`test_business_should_not_import_web_framework`) asserts no business module imports FastAPI/Flask/Starlette/Django; unlike in the layered layout, this rule now **passes** — the `OAuth2PasswordRequestForm` leak is gone, `token_login` takes plain `email`/`password` and the form binding lives in `FormDataDep` in the composition root.
   - A rule whose `.match()` pattern selects no modules passes vacuously. If you rename a package, re-check these patterns still match something — that is exactly how the old layer rules went silently dead after this refactor.

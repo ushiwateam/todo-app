@@ -3,12 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from app.dependencies import TodoServiceDep
-from app.shared.presentation.error_responses import (
-    FORBIDDEN_RESPONSE,
-    NOT_FOUND_RESPONSE,
-    UNAUTHORIZED_RESPONSE,
-)
+from app.shared.errors.responses import UNAUTHORIZED_RESPONSE
 from app.todos.business.exceptions import TodoNotFoundError, UnauthorizedAccessError
+from app.todos.presentation.responses import FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE
 from app.todos.presentation.schema import (
     TodoListResponse,
     TodosCreateRequest,

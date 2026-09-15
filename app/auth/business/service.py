@@ -8,13 +8,13 @@ from app.auth.business.exceptions import (
     InvalidCredentialsError,
 )
 from app.auth.business.interface import IAuthService
-from app.config import ACCESS_TOKEN_EXPIRE_HOURS
-from app.security import (
+from app.auth.security import (
     create_access_token,
     decode_access_token,
     prepare_token_data,
     pwd_context,
 )
+from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 
 DUMMY_HASH = pwd_context.hash("dummypassword")
 

@@ -4,13 +4,12 @@ from app.auth.business.exceptions import (
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
 )
-from app.auth.presentation.schemas import UserLoginRequest, UserRegisterRequest
-from app.dependencies import AuthServiceDep, FormDataDep
-from app.shared.presentation.error_responses import (
+from app.auth.presentation.responses import (
     EMAIL_ALREADY_REGISTERED_RESPONSE,
     LOGIN_UNAUTHORIZED_RESPONSE,
 )
-from tests.unit.application.services.test_auth import password
+from app.auth.presentation.schemas import UserLoginRequest, UserRegisterRequest
+from app.dependencies import AuthServiceDep, FormDataDep
 
 router = APIRouter(tags=["Users"])
 

@@ -1,4 +1,4 @@
-from app.exceptions import BusinessError
+from app.shared.errors.exceptions import BusinessError
 
 
 class EmailAlreadyRegisteredError(BusinessError):

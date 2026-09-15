@@ -7,10 +7,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.auth.data_access.model import User
+from app.auth.security import create_access_token, prepare_token_data, pwd_context
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.dependencies import get_db
 from app.main import app
-from app.security import create_access_token, prepare_token_data, pwd_context
 from app.shared.database.base import Base
 from app.todos.data_access.model import Todo
 

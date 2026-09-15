@@ -4,9 +4,9 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 
 from app.auth.business.entity import User as BusinessUser
+from app.auth.security import create_access_token, prepare_token_data
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.dependencies import get_current_user
-from app.security import create_access_token, prepare_token_data
 
 
 def test_get_current_user_should_not_depend_on_raw_db_session():

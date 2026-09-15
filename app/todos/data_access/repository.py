@@ -3,7 +3,7 @@ from typing import List
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.shared.data_access.base_repository import ISqlAlchemyRepository
+from app.shared.database.repository import ISqlAlchemyRepository
 from app.todos.business.entity import Todo
 from app.todos.business.entity import Todo as EntityTodo
 from app.todos.data_access.interface import ITodoRepository
