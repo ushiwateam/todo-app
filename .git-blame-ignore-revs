@@ -1,0 +1,8 @@
+# Revisions listed here are skipped by `git blame`, so blame points at the
+# author who actually wrote a line rather than at a bulk formatting pass.
+#
+# Activate locally (GitHub's blame view reads this file automatically):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: apply black and isort to config and alembic migrations
+6c22360c9216011f4a78825707f2b9682cd03161
