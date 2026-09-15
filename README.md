@@ -428,6 +428,14 @@ The hook is local, so it can be skipped — a `--no-verify` push, or a clone tha
 set for every push and every PR into `main`/`develop`, annotates the offending lines in the diff and
 prints the fix in the run summary. Bypassing the hook only defers the failure to CI.
 
+The whole repository is clean under both tools. The bulk reformat that got it there is listed in
+`.git-blame-ignore-revs`, so `git blame` attributes each line to whoever actually wrote it. GitHub
+applies the file automatically; locally, enable it once per clone:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ---
 
 ## 🚧 Roadmap
