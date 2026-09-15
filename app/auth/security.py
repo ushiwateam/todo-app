@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt
 from passlib.context import CryptContext
 
-from app.auth.data_access.model import User
+from app.auth.business.entity import User
 from app.config import TOKEN_ALGORITHM, TOKEN_SECRET_KEY
 
 

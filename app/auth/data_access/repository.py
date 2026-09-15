@@ -5,7 +5,7 @@ from app.auth.business.entity import User as EntityUser
 from app.auth.data_access.interface import IUserRepository
 from app.auth.data_access.mapper import to_entity, to_model
 from app.auth.data_access.model import User as ModelUser
-from app.shared.data_access.base_repository import ISqlAlchemyRepository
+from app.shared.database.repository import ISqlAlchemyRepository
 
 
 class UserSqlAlchemyRepository(

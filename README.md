@@ -55,24 +55,25 @@ todo-app/
 │   │   │   ├── repository.py       # UserSqlAlchemyRepository
 │   │   │   ├── mapper.py           # entity <-> model
 │   │   │   └── model.py            # User SQLAlchemy model
-│   │   └── presentation/
-│   │       ├── router.py           # /register, /login, /token
-│   │       └── schemas.py          # Pydantic request/response models
+│   │   ├── presentation/
+│   │   │   ├── router.py           # /register, /login, /token
+│   │   │   ├── schemas.py          # Pydantic request/response models
+│   │   │   └── responses.py        # auth's own OpenAPI responses={} dicts
+│   │   └── security.py             # bcrypt hashing + JWT encode/decode (auth-private)
 │   │
 │   ├── todos/                      # ── feature slice: todo CRUD (same three layers) ──
 │   │   ├── business/               # entity.py, interface.py, service.py, exceptions.py
 │   │   ├── data_access/            # interface.py, repository.py, mapper.py, model.py
-│   │   └── presentation/           # router.py (/todos), schema.py
+│   │   └── presentation/           # router.py (/todos), schema.py, responses.py
 │   │
-│   └── shared/                     # ── what both slices build on ──
+│   └── shared/                     # ── what both slices build on, by concern not by layer ──
 │       ├── database/
 │       │   ├── base.py             # SQLAlchemy DeclarativeBase
-│       │   └── session.py          # Engine + SessionLocal
-│       ├── data_access/
-│       │   └── base_repository.py  # Generic ISqlAlchemyRepository
-│       └── presentation/
-│           ├── error_responses.py  # Shared OpenAPI responses={} dicts
-│           └── errors_schemas.py   # ErrorResponse schema
+│       │   ├── session.py          # Engine + SessionLocal
+│       │   └── repository.py       # Generic ISqlAlchemyRepository
+│       └── errors/
+│           ├── exceptions.py       # AppError / BusinessError
+│           └── responses.py        # ErrorResponse + UNAUTHORIZED_RESPONSE
 │
 ├── alembic/                        # Database migrations
 ├── tests/
@@ -345,8 +346,11 @@ directory:
 
 Dependencies point one way only, and every layer reaches the one below it through an interface
 rather than a concrete class. `app/shared/` holds what both slices build on (the declarative `Base`,
-the session factory, the generic `ISqlAlchemyRepository`, the shared OpenAPI error responses) and
-never imports a feature. `app/dependencies.py` is the composition root — the single place that binds
+the session factory, the generic `ISqlAlchemyRepository`, the `AppError`/`BusinessError` hierarchy and
+the feature-neutral OpenAPI error response), organised by technical concern rather than by layer, and
+never imports a feature. The test for belonging in `shared/` is "would this still make sense if any one
+feature were deleted?" — which is why `app/auth/security.py` and each slice's `presentation/responses.py`
+live inside their feature. `app/dependencies.py` is the composition root — the single place that binds
 interfaces to implementations, and the only module that imports across every slice.
 
 Because file names are positional (`interface.py` is "the interface of *this* layer of *this*

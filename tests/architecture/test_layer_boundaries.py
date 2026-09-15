@@ -9,8 +9,14 @@ from pytest_archon import archrule
 #
 # The layout is feature-based: app/auth/ and app/todos/ are self-contained
 # slices, each with its own business/, data_access/ and presentation/ layers,
-# and app/shared/ holds the pieces both features build on (Base, session,
-# ISqlAlchemyRepository, error responses).
+# and app/shared/ holds the pieces both features build on, organised by
+# technical concern rather than by layer: shared/database/ (Base, session,
+# ISqlAlchemyRepository) and shared/errors/ (AppError/BusinessError, the
+# ErrorResponse schema and the one feature-neutral OpenAPI response).
+#
+# Feature-specific OpenAPI response dicts now live in the slice that owns
+# them (<feature>/presentation/responses.py), so no pattern here refers to
+# app.shared.presentation* or app.shared.data_access* any more.
 
 FEATURES = ("auth", "todos")
 
@@ -20,12 +26,13 @@ def _internals(feature: str) -> tuple[str, ...]:
 
     A feature's public surface is its business entity and its business/data
     access interfaces; its services, repositories, mappers, ORM models,
-    routers and schemas are private to it.
+    routers, schemas and crypto helpers are private to it.
     """
     return (
         f"app.{feature}.business.service*",
         f"app.{feature}.data_access*",
         f"app.{feature}.presentation*",
+        f"app.{feature}.security*",
     )
 
 
@@ -73,7 +80,7 @@ def test_presentation_should_not_import_data_access():
         )
         .match("app.*.presentation*")
         .should_not_import(
-            "app.auth.data_access*", "app.todos.data_access*", "app.shared.data_access*"
+            "app.auth.data_access*", "app.todos.data_access*", "app.shared.database*"
         )
         .check("app", only_direct_imports=True)
     )
@@ -107,7 +114,6 @@ def test_business_should_not_import_presentation():
         .should_not_import(
             "app.auth.presentation*",
             "app.todos.presentation*",
-            "app.shared.presentation*",
         )
         .check("app", only_direct_imports=True)
     )
@@ -126,7 +132,6 @@ def test_business_should_not_import_data_access_internals():
                 for f in FEATURES
                 for m in ("model", "repository", "mapper")
             ),
-            "app.shared.data_access*",
             "app.shared.database*",
         )
         .check("app", only_direct_imports=True)
@@ -143,7 +148,6 @@ def test_data_access_should_not_import_presentation():
         .should_not_import(
             "app.auth.presentation*",
             "app.todos.presentation*",
-            "app.shared.presentation*",
         )
         .check("app", only_direct_imports=True)
     )

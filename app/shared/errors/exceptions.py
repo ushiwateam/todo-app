@@ -6,13 +6,5 @@ class AppError(Exception):
         super().__init__(self.detail)
 
 
-class PresentationError(AppError):
-    pass
-
-
-class DataAccessError(AppError):
-    pass
-
-
 class BusinessError(AppError):
     pass
