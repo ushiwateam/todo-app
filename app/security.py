@@ -1,10 +1,10 @@
-from datetime import timedelta, datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from jose import jwt
 from passlib.context import CryptContext
 
-from app.config import TOKEN_SECRET_KEY, TOKEN_ALGORITHM
-from app.data_access.database.models.user import User
+from app.auth.data_access.model import User
+from app.config import TOKEN_ALGORITHM, TOKEN_SECRET_KEY
 
 
 def create_access_token(data: dict, expires_delta: timedelta):
@@ -14,16 +14,13 @@ def create_access_token(data: dict, expires_delta: timedelta):
     encoded_jwt = jwt.encode(to_encode, TOKEN_SECRET_KEY, algorithm=TOKEN_ALGORITHM)
     return encoded_jwt
 
-def prepare_token_data(user: User):
-    return {
-        "sub": str(user.id),
-        "email": user.email
-    }
 
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto"
-)
+def prepare_token_data(user: User):
+    return {"sub": str(user.id), "email": user.email}
+
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 def decode_access_token(token: str) -> dict:
     return jwt.decode(token, TOKEN_SECRET_KEY, algorithms=[TOKEN_ALGORITHM])

@@ -36,35 +36,58 @@ A RESTful Todo API built with FastAPI, PostgreSQL, SQLAlchemy, and JWT authentic
 ## 📁 Project Structure
 
 ```text
-todo-api/
+todo-app/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI application entry point
-│   ├── config.py            # Environment variables configuration (pydantic-settings)
-│   ├── database.py          # SQLAlchemy database connection
-│   ├── models/
-│   │   ├── user.py          # User SQLAlchemy model
-│   │   └── todo.py          # Todo SQLAlchemy model
-│   ├── schemas/
-│   │   ├── user.py          # Pydantic schemas (request/response)
-│   │   └── todo.py
-│   ├── routers/
-│   │   ├── auth.py          # /register, /login endpoints
-│   │   └── todos.py         # /todos CRUD endpoints
-│   ├── services/
-│   │   ├── auth_service.py  # Authentication business logic
-│   │   └── todo_service.py  # Todo business logic
-│   └── dependencies.py      # get_current_user, get_db dependencies
-├── alembic/                 # Database migrations
+│   ├── main.py                     # FastAPI application entry point
+│   ├── config.py                   # Environment variables (POSTGRES_*, TOKEN_SECRET_KEY)
+│   ├── security.py                 # Password hashing + JWT encode/decode
+│   ├── exceptions.py               # AppError base classes
+│   ├── dependencies.py             # Composition root: get_db, get_current_user, *Dep aliases
+│   │
+│   ├── auth/                       # ── feature slice: users, registration, login ──
+│   │   ├── business/
+│   │   │   ├── entity.py           # User domain entity (dataclass)
+│   │   │   ├── interface.py        # IAuthService
+│   │   │   ├── service.py          # AuthService
+│   │   │   └── exceptions.py       # EmailAlreadyRegisteredError, InvalidCredentialsError
+│   │   ├── data_access/
+│   │   │   ├── interface.py        # IUserRepository
+│   │   │   ├── repository.py       # UserSqlAlchemyRepository
+│   │   │   ├── mapper.py           # entity <-> model
+│   │   │   └── model.py            # User SQLAlchemy model
+│   │   └── presentation/
+│   │       ├── router.py           # /register, /login, /token
+│   │       └── schemas.py          # Pydantic request/response models
+│   │
+│   ├── todos/                      # ── feature slice: todo CRUD (same three layers) ──
+│   │   ├── business/               # entity.py, interface.py, service.py, exceptions.py
+│   │   ├── data_access/            # interface.py, repository.py, mapper.py, model.py
+│   │   └── presentation/           # router.py (/todos), schema.py
+│   │
+│   └── shared/                     # ── what both slices build on ──
+│       ├── database/
+│       │   ├── base.py             # SQLAlchemy DeclarativeBase
+│       │   └── session.py          # Engine + SessionLocal
+│       ├── data_access/
+│       │   └── base_repository.py  # Generic ISqlAlchemyRepository
+│       └── presentation/
+│           ├── error_responses.py  # Shared OpenAPI responses={} dicts
+│           └── errors_schemas.py   # ErrorResponse schema
+│
+├── alembic/                        # Database migrations
 ├── tests/
-│   ├── test_auth.py
-│   └── test_todos.py
-├── .env                     # Local environment variables (never committed)
-├── .env.example             # Environment variables template
-├── .gitignore
-├── docker-compose.yml       # API + PostgreSQL services
+│   ├── conftest.py                 # In-memory SQLite session, TestClient fixtures
+│   ├── unit/
+│   ├── integration/
+│   └── architecture/               # pytest-archon boundary rules
+├── .githooks/                      # commit-msg + pre-push hooks
+├── .env                            # Local environment variables (never committed)
+├── .env.example                    # Environment variables template
+├── docker-compose.yml              # API + PostgreSQL services
 ├── Dockerfile
-└── requirements.txt
+├── pyproject.toml                  # black + isort settings
+├── requirements.txt
+└── requirements-dev.txt            # Pinned black + isort
 ```
 
 ---
@@ -108,7 +131,7 @@ TOKEN_SECRET_KEY=your-secret-key
 
 ```bash
 git clone https://github.com/ushiwateam/todo-app.git
-cd todo-api
+cd todo-app
 ```
 
 ### 2. Configure environment variables
@@ -281,6 +304,17 @@ Run tests inside Docker:
 docker compose exec app pytest
 ```
 
+The suite has three tiers:
+
+```bash
+pytest tests/unit           # Services in isolation, repositories faked
+pytest tests/integration    # Routers end to end through a TestClient
+pytest tests/architecture   # Import-boundary rules between slices and layers
+```
+
+Tests never touch the real PostgreSQL database — `tests/conftest.py` overrides the `get_db`
+dependency with an in-memory SQLite session, rolled back after every test.
+
 ---
 
 ## 🏗️ Architecture
@@ -296,6 +330,34 @@ PostgreSQL
 ```
 
 Docker Compose orchestrates both services locally.
+
+### Feature-based structure
+
+The code is organised **by feature (vertical slices)** rather than by technical layer. Each slice
+(`app/auth/`, `app/todos/`) owns its own three layers, so everything a feature needs lives in one
+directory:
+
+```text
+<feature>/presentation/  →  <feature>/business/  →  <feature>/data_access/
+(router, schemas)           (service, interface,     (repository, interface,
+                             entity, exceptions)      mapper, ORM model)
+```
+
+Dependencies point one way only, and every layer reaches the one below it through an interface
+rather than a concrete class. `app/shared/` holds what both slices build on (the declarative `Base`,
+the session factory, the generic `ISqlAlchemyRepository`, the shared OpenAPI error responses) and
+never imports a feature. `app/dependencies.py` is the composition root — the single place that binds
+interfaces to implementations, and the only module that imports across every slice.
+
+Because file names are positional (`interface.py` is "the interface of *this* layer of *this*
+feature"), `app/auth/business/interface.py` is `IAuthService` while `app/auth/data_access/interface.py`
+is `IUserRepository`.
+
+Slices stay independent: `auth` must not import `todos` at all, and `todos` may use only the `auth`
+business entity (it owns a `user_id`), never auth's service, repository, mapper, ORM model or router.
+These rules are not conventions on paper — `tests/architecture/test_layer_boundaries.py` enforces
+them with [pytest-archon](https://github.com/jwbargsten/pytest-archon), so a boundary violation fails
+the test suite.
 
 ---
 

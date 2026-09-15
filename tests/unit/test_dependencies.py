@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
-from app.business.entities.user import User as BusinessUser
+from app.auth.business.entity import User as BusinessUser
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.dependencies import get_current_user
 from app.security import create_access_token, prepare_token_data

@@ -1,19 +1,19 @@
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 
-from app.business.entities import User
-from app.business.interfaces.auth import IAuthService
-from app.business.interfaces.todo import ITodoService
-from app.data_access.interfaces.todo import ITodoRepository
-from app.data_access.interfaces.user import IUserRepository
-from app.data_access.database.session import SessionLocal
-from app.data_access.repositories.user_repository import UserSqlAlchemyRepository
-from app.data_access.repositories.todo_repository import TodoSqlAlchemyRepository
-from app.business.services.auth_service import AuthService
-from app.business.services.todo_service import TodoService
+from app.auth.business.entity import User
+from app.auth.business.interface import IAuthService
+from app.auth.business.service import AuthService
+from app.auth.data_access.interface import IUserRepository
+from app.auth.data_access.repository import UserSqlAlchemyRepository
+from app.shared.database.session import SessionLocal
+from app.todos.business.interface import ITodoService
+from app.todos.business.service import TodoService
+from app.todos.data_access.interface import ITodoRepository
+from app.todos.data_access.repository import TodoSqlAlchemyRepository
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -51,14 +51,18 @@ def get_auth_service(user_repository: UserRepositoryDep) -> IAuthService:
 AuthServiceDep = Annotated[IAuthService, Depends(get_auth_service)]
 
 
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], user_service: AuthServiceDep):
+def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)], user_service: AuthServiceDep
+):
     return user_service.get_current_user(token)
 
 
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
-def get_todo_service(todo_repository: TodoRepositoryDep, user: CurrentUserDep) -> ITodoService:
+def get_todo_service(
+    todo_repository: TodoRepositoryDep, user: CurrentUserDep
+) -> ITodoService:
     return TodoService(todo_repository, user)
 
 
