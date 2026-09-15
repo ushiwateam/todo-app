@@ -1,11 +1,13 @@
 from fastapi import FastAPI
-from app.presentation.routers.auth import router as auth_router
-from app.presentation.routers.todos import router as todos_router
+
+from app.auth.presentation.router import router as auth_router
+from app.todos.presentation.router import router as todos_router
 
 app = FastAPI()
 
 app.include_router(auth_router)
 app.include_router(todos_router)
+
 
 @app.get("/")
 async def root():
