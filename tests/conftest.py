@@ -6,19 +6,18 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.security import pwd_context, create_access_token, prepare_token_data
+from app.auth.data_access.model import User
 from app.config import ACCESS_TOKEN_EXPIRE_HOURS
 from app.dependencies import get_db
 from app.main import app
-from app.data_access.database.base import Base
-from app.data_access.database.models import User, Todo
+from app.security import create_access_token, prepare_token_data, pwd_context
+from app.shared.database.base import Base
+from app.todos.data_access.model import Todo
 
 TEST_DATABASE_URL = "sqlite://"
 
 engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
+    TEST_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool
 )
 
 TestingSessionLocal = sessionmaker(
@@ -84,7 +83,7 @@ def create_todo(db):
         todo = Todo(
             title=kwargs.get("title", "Test title"),
             description=kwargs.get("description", "dummy description"),
-            user_id=user.id
+            user_id=user.id,
         )
 
         db.add(todo)
