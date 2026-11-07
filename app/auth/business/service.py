@@ -14,7 +14,7 @@ from app.auth.security import (
     prepare_token_data,
     pwd_context,
 )
-from app.config import ACCESS_TOKEN_EXPIRE_HOURS
+from app.config import settings
 
 DUMMY_HASH = pwd_context.hash("dummypassword")
 
@@ -32,7 +32,7 @@ class AuthService(IAuthService):
         new_entity_user = User(name=name, email=email, password=hashed_password)
         new_user = self.user_repository.register_user(new_entity_user)
 
-        access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+        access_token_expires = timedelta(hours=settings.access_token_expire_hours)
         token_data = prepare_token_data(new_user)
         token = create_access_token(token_data, access_token_expires)
         return {"token": token}
@@ -50,7 +50,7 @@ class AuthService(IAuthService):
         existing_user = self.authenticate_user(email, password)
         if not existing_user:
             raise InvalidCredentialsError()
-        access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+        access_token_expires = timedelta(hours=settings.access_token_expire_hours)
         token_data = prepare_token_data(existing_user)
         token = create_access_token(token_data, access_token_expires)
         return {"token": token}
