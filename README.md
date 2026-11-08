@@ -39,7 +39,7 @@ A RESTful Todo API built with FastAPI, PostgreSQL, SQLAlchemy, and JWT authentic
 todo-app/
 ├── app/
 │   ├── main.py                     # FastAPI application entry point
-│   ├── config.py                   # Environment variables (POSTGRES_*, TOKEN_SECRET_KEY)
+│   ├── config.py                   # Typed settings via pydantic-settings (POSTGRES_*, TOKEN_SECRET_KEY)
 │   ├── security.py                 # Password hashing + JWT encode/decode
 │   ├── exceptions.py               # AppError base classes
 │   ├── dependencies.py             # Composition root: get_db, get_current_user, *Dep aliases

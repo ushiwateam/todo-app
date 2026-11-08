@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.auth.data_access.model import User
 from app.auth.security import create_access_token, prepare_token_data, pwd_context
-from app.config import ACCESS_TOKEN_EXPIRE_HOURS
+from app.config import settings
 from app.dependencies import get_db
 from app.main import app
 from app.shared.database.base import Base
@@ -97,7 +97,7 @@ def create_todo(db):
 @pytest.fixture
 def auth_headers():
     def _auth_headers(user: User):
-        access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+        access_token_expires = timedelta(hours=settings.access_token_expire_hours)
         token = create_access_token(prepare_token_data(user), access_token_expires)
         return {"Authorization": f"Bearer {token}"}
 

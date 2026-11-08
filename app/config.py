@@ -1,14 +1,23 @@
-import os
+from pathlib import Path
 
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
+# Resolve .env from the project root, not the current working directory,
+# so the app and pytest work no matter where they are launched from.
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
-DB_USER = os.getenv("POSTGRES_USER")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-DB_HOST = os.getenv("POSTGRES_HOST")
-DB_PORT = os.getenv("POSTGRES_PORT")
-DB_NAME = os.getenv("POSTGRES_DB")
-TOKEN_SECRET_KEY = os.getenv("TOKEN_SECRET_KEY")
-TOKEN_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
+
+    postgres_user: str
+    postgres_password: str
+    postgres_host: str
+    postgres_port: int
+    postgres_db: str
+    token_secret_key: str
+    token_algorithm: str = "HS256"
+    access_token_expire_hours: int = 24
+
+
+settings = Settings()

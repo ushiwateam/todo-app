@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.business.entity import User as BusinessUser
 from app.auth.security import create_access_token, prepare_token_data
-from app.config import ACCESS_TOKEN_EXPIRE_HOURS
+from app.config import settings
 from app.dependencies import get_current_user
 
 
